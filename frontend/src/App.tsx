@@ -18,6 +18,8 @@ import PuntoEquilibrio  from './pages/PuntoEquilibrio'
 import Costos           from './pages/Costos'
 import Productos        from './pages/Productos'
 import Stock            from './pages/Stock'
+import Clientes         from './pages/Clientes'
+import CuentaCorriente  from './pages/CuentaCorriente'
 
 export default function App() {
   return (
@@ -172,6 +174,28 @@ export default function App() {
             <ProtectedRoute requiredRole="admin">
               <Layout>
                 <Stock />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ── Clientes & Cuenta Corriente (admin) ── */}
+        <Route
+          path="/clientes"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <Layout>
+                <Clientes />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/cuenta-corriente"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <Layout>
+                <CuentaCorriente />
               </Layout>
             </ProtectedRoute>
           }

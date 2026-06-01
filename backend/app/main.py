@@ -10,6 +10,7 @@ from app.routers import (
     vacations_router, expenses_router, dashboard_router, employees_router,
     receipts_router, cashflow_router, vencimientos_router, gastos_personales_router,
     caja_diaria_router, costos_router, ventas_jan_router,
+    clientes_jan_router, cuenta_corriente_jan_router,
 )
 
 Base.metadata.create_all(bind=engine)
@@ -27,7 +28,7 @@ def _run_migrations():
         db.execute(text(
             "ALTER TABLE luro_expenses ADD COLUMN IF NOT EXISTS caja_id INTEGER;"
         ))
-        # Tabla ventas JAN (se crea via SQLAlchemy create_all, pero asegurar columnas)
+        # ── ventas_jan ────────────────────────────────────────────────
         db.execute(text("""
             CREATE TABLE IF NOT EXISTS ventas_jan (
                 id              SERIAL PRIMARY KEY,
@@ -40,9 +41,52 @@ def _run_migrations():
                 precio_unitario NUMERIC(15,2) NOT NULL,
                 total           NUMERIC(15,2) NOT NULL,
                 canal           VARCHAR(50) NOT NULL,
-                medio_pago      VARCHAR(50) NOT NULL,
+                medio_pago      VARCHAR(50),
                 notas           VARCHAR(400) DEFAULT '',
                 created_at      TIMESTAMP DEFAULT NOW()
+            );
+        """))
+        # Columnas nuevas en ventas_jan
+        for col in [
+            "ALTER TABLE ventas_jan ADD COLUMN IF NOT EXISTS metodo_pago  VARCHAR(30);",
+            "ALTER TABLE ventas_jan ADD COLUMN IF NOT EXISTS estado_pago  VARCHAR(15) DEFAULT 'pagado';",
+            "ALTER TABLE ventas_jan ADD COLUMN IF NOT EXISTS cliente_tipo VARCHAR(20) DEFAULT 'cliente_final';",
+            "ALTER TABLE ventas_jan ADD COLUMN IF NOT EXISTS cliente_id   INTEGER;",
+        ]:
+            db.execute(text(col))
+
+        # ── clientes_jan ──────────────────────────────────────────────
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS clientes_jan (
+                id                SERIAL PRIMARY KEY,
+                nombre_completo   VARCHAR(200) NOT NULL,
+                direccion         TEXT,
+                email             VARCHAR(200),
+                condicion_iva     VARCHAR(30) NOT NULL,
+                documento_tipo    VARCHAR(10) NOT NULL,
+                documento_numero  VARCHAR(20) NOT NULL,
+                telefono          VARCHAR(20),
+                categoria_precios VARCHAR(20) NOT NULL,
+                tipo_cliente      VARCHAR(20) NOT NULL,
+                notas             TEXT,
+                activo            BOOLEAN DEFAULT TRUE,
+                created_at        TIMESTAMP DEFAULT NOW()
+            );
+        """))
+
+        # ── cuenta_corriente_jan ──────────────────────────────────────
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS cuenta_corriente_jan (
+                id                SERIAL PRIMARY KEY,
+                cliente_id        INTEGER NOT NULL REFERENCES clientes_jan(id),
+                venta_id          INTEGER NOT NULL REFERENCES ventas_jan(id),
+                monto_original    NUMERIC(15,2) NOT NULL,
+                monto_pendiente   NUMERIC(15,2) NOT NULL,
+                estado            VARCHAR(15) NOT NULL DEFAULT 'pendiente',
+                fecha_venta       DATE NOT NULL,
+                fecha_cancelacion DATE,
+                notas             VARCHAR(400) DEFAULT '',
+                created_at        TIMESTAMP DEFAULT NOW()
             );
         """))
         db.commit()
@@ -393,6 +437,8 @@ app.include_router(gastos_personales_router)
 app.include_router(caja_diaria_router)
 app.include_router(costos_router)
 app.include_router(ventas_jan_router)
+app.include_router(clientes_jan_router)
+app.include_router(cuenta_corriente_jan_router)
 
 
 @app.get("/")

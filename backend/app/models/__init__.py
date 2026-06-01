@@ -13,6 +13,8 @@ from .vencimientos import Vencimiento, VencimientoEstado, VencimientoOneOff
 from .gastos_personales import GastoPersonal
 from .costos import InsumoJAN, RecetaJAN
 from .ventas_jan import VentaJAN
+from .clientes_jan import ClienteJAN
+from .cuenta_corriente_jan import CuentaCorrienteJAN
 
 __all__ = [
     "User",

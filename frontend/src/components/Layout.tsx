@@ -11,15 +11,17 @@ const CORAL = '#C4875A'
 
 /* ── Estructura de navegación ──────────────────────────────────── */
 const FINANZAS_ITEMS = [
-  { to: '/compras',           label: 'Compras'         },
-  { to: '/gastos',            label: 'Gastos JAN'      },
-  { to: '/gastos-personales', label: 'Gastos Pers.'    },
-  { to: '/flujocaja',         label: 'Flujo de Caja'   },
-  { to: '/vencimientos',      label: 'Vencimientos'    },
-  { to: '/punto-equilibrio',  label: 'Pto. Equilibrio' },
+  { to: '/compras',           label: 'Compras'          },
+  { to: '/gastos',            label: 'Gastos JAN'       },
+  { to: '/gastos-personales', label: 'Gastos Pers.'     },
+  { to: '/flujocaja',         label: 'Flujo de Caja'    },
+  { to: '/vencimientos',      label: 'Vencimientos'     },
+  { to: '/punto-equilibrio',  label: 'Pto. Equilibrio'  },
+  { to: '/cuenta-corriente',  label: 'Cta. Corriente'   },
 ]
 const COMERCIAL_ITEMS = [
   { to: '/ventas',    label: 'Ventas'    },
+  { to: '/clientes',  label: 'Clientes'  },
   { to: '/compras',   label: 'Compras'   },
   { to: '/productos', label: 'Productos' },
 ]
