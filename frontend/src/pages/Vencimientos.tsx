@@ -45,15 +45,15 @@ const MESES_ES = [
 const WEEK_DAYS = ['LUN','MAR','MIÉ','JUE','VIE','SÁB','DOM']
 const CATEGORIES = ['Alquiler','Servicios','Impuestos','Financiero','Seguros','Personal','Otros']
 const CAT_COLORS: Record<string, string> = {
-  Alquiler: '#C8603A', Servicios: '#3b82f6', Impuestos: '#6366f1',
+  Alquiler: '#C4875A', Servicios: '#3b82f6', Impuestos: '#6366f1',
   Financiero: '#ef4444', Seguros: '#8b5cf6', Personal: '#22c55e', Otros: '#64748b',
 }
 const COLOR_PALETTE = [
-  '#C8603A','#3b82f6','#6366f1','#ef4444','#8b5cf6',
+  '#C4875A','#3b82f6','#6366f1','#ef4444','#8b5cf6',
   '#22c55e','#f97316','#06b6d4','#eab308','#ec4899','#64748b','#14b8a6',
 ]
-const NAVY  = '#070614'
-const CORAL = '#C8603A'
+const NAVY  = '#3D6B64'
+const CORAL = '#C4875A'
 
 function fmt(n: number) {
   if (n === 0) return '$ 0'
@@ -729,10 +729,10 @@ export default function Vencimientos() {
     const lines = waItems.map(i => `• Día ${i.day} · ${i.name}${i.amount > 0 ? ` · ${fmt(i.amount)}` : ''}`)
     const total = waItems.reduce((s, i) => s + i.amount, 0)
     const text = [
-      `🗓️ *Vencimientos ${semana} — Sur Maderas*`, '',
+      `🗓️ *Vencimientos ${semana} — JAN Orgánico Natural*`, '',
       waItems.length > 0 ? `⏳ *Pendientes:*\n${lines.join('\n')}` : '✅ Sin vencimientos pendientes.',
       total > 0 ? `\n💰 *Total: ${fmt(total)}*` : '',
-      '', `_Sur Maderas ERP · ${MESES_ES[monthIdx]} ${year}_`,
+      '', `_JAN Orgánico Natural ERP · ${MESES_ES[monthIdx]} ${year}_`,
     ].join('\n')
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }

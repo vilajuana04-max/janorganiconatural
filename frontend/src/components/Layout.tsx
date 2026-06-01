@@ -237,7 +237,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <div className="min-h-screen flex" style={{ background: '#f8f7f5' }}>
+    <div className="min-h-screen flex" style={{ background: '#F5EFE6' }}>
 
       {/* ── SIDEBAR DESKTOP ── */}
       <aside
@@ -284,3 +284,4 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     </div>
   )
 }
+

@@ -9,13 +9,13 @@ import {
 } from 'recharts'
 import { api, fmt$, MONTHS, CURRENT_YEAR, CURRENT_MONTH_IDX } from '../api'
 
-const NAVY      = '#070614'
-const CORAL     = '#C8603A'
+const NAVY      = '#3D6B64'
+const CORAL     = '#C4875A'
 const ALL_YEARS = [2024, 2025, 2026, 2027]
 
 /* ── Colores por proveedor (hash determinístico) ─────────────── */
 const PROV_PALETTE = [
-  '#C8603A', // coral
+  '#C4875A', // amber
   '#2563eb', // blue
   '#16a34a', // green
   '#9333ea', // purple
@@ -268,7 +268,7 @@ export default function Compras() {
       {/* ── HEADER ── */}
       <div style={{ background: NAVY }} className="rounded-xl p-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p style={{ color: CORAL }} className="text-xs font-semibold tracking-widest uppercase mb-1">Sur Maderas · ERP</p>
+          <p style={{ color: CORAL }} className="text-xs font-semibold tracking-widest uppercase mb-1">JAN Orgánico Natural · ERP</p>
           <h1 className="text-2xl font-bold text-white">Compras y Gastos</h1>
           <p className="text-white/50 text-sm">Registro de facturas — una por fila</p>
         </div>

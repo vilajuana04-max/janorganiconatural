@@ -11,7 +11,7 @@ function SessionLoader() {
     <div className="min-h-screen flex items-center justify-center bg-[#0f172a]">
       <div className="flex flex-col items-center gap-3">
         <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-        <p className="text-white/40 text-xs tracking-widest uppercase">Sur Maderas</p>
+        <p className="text-white/40 text-xs tracking-widest uppercase">JAN Orgánico Natural</p>
       </div>
     </div>
   )

@@ -26,9 +26,9 @@ function KpiCard({ label, value, pct, sub, accent }: {
   )
 }
 
-const NAVY      = '#070614'
-const CORAL     = '#C8603A'
-const CORAL_DRK = '#A84E2C'
+const NAVY      = '#3D6B64'
+const CORAL     = '#C4875A'
+const CORAL_DRK = '#8B4C2E'
 const EDIT_PIN  = 'SUR2026'   // ← clave para desbloquear edición histórica
 
 const BRANCHES = [
@@ -219,7 +219,7 @@ export default function Ventas() {
       {/* ── HEADER ── */}
       <div style={{ background: NAVY }} className="rounded-xl p-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p style={{ color: CORAL }} className="text-xs font-semibold tracking-widest uppercase mb-1">Sur Maderas · ERP</p>
+          <p style={{ color: CORAL }} className="text-xs font-semibold tracking-widest uppercase mb-1">JAN Orgánico Natural · ERP</p>
           <h1 className="text-2xl font-bold text-white">Ventas Diarias</h1>
           <p className="text-white/50 text-sm">Registrá las ventas del día en ambas sucursales</p>
         </div>

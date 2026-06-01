@@ -8,10 +8,10 @@ import {
 } from 'lucide-react'
 import { api, fmt$, CURRENT_YEAR } from '../api'
 
-const NAVY       = '#070614'
-const CORAL      = '#C8603A'
-const CORAL_DARK = '#A84E2C'
-const CHART_COLORS = [NAVY, CORAL, CORAL_DARK, '#464545', '#888580', '#2A1410']
+const NAVY       = '#3D6B64'
+const CORAL      = '#C4875A'
+const CORAL_DARK = '#8B4C2E'
+const CHART_COLORS = [NAVY, CORAL, CORAL_DARK, '#6B5E50', '#a89c90', '#1E2B1A']
 
 const MONTH_ABBR: Record<string, string> = {
   ENERO:'Ene', FEBRERO:'Feb', MARZO:'Mar', ABRIL:'Abr',
@@ -201,7 +201,7 @@ export default function Dashboard() {
 
       {/* Header */}
       <div>
-        <p className="eyebrow mb-1">Sur Maderas · ERP</p>
+        <p className="eyebrow mb-1">JAN Orgánico Natural · ERP</p>
         <h1 className="text-3xl font-bold font-head" style={{ color: NAVY }}>Dashboard</h1>
         <p className="text-brand-muted text-sm font-body mt-0.5">
           {kpis?.current_month} {kpis?.current_year} · Flujo de caja e indicadores
@@ -455,9 +455,9 @@ export default function Dashboard() {
       {!kpis && (
         <div className="card flex flex-col items-center justify-center py-16 text-center">
           <div className="w-12 h-12 rounded-2xl mb-4 flex items-center justify-center" style={{ background: NAVY }}>
-            <span style={{ color: CORAL }} className="text-xl font-bold font-head">S</span>
+            <span style={{ color: CORAL }} className="text-xl font-bold font-head">J</span>
           </div>
-          <p className="font-bold font-head text-lg mb-1" style={{ color: NAVY }}>Bienvenido al ERP de Sur Maderas</p>
+          <p className="font-bold font-head text-lg mb-1" style={{ color: NAVY }}>Bienvenido al ERP de JAN Orgánico Natural</p>
           <p className="text-brand-muted text-sm font-body">Comenzá cargando las ventas diarias en el módulo Ventas.</p>
         </div>
       )}

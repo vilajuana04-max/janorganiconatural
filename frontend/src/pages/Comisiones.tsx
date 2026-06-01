@@ -5,8 +5,8 @@ import {
   Briefcase, History, Save,
 } from 'lucide-react'
 
-const NAVY  = '#070614'
-const CORAL = '#C8603A'
+const NAVY  = '#3D6B64'
+const CORAL = '#C4875A'
 
 // ── Types ─────────────────────────────────────────────────────────
 type Turno = '6hs' | '8hs'
@@ -975,7 +975,7 @@ function TabPuestos({
             {puesto?.nombre}
           </p>
           <p className="text-xs mt-1 opacity-60" style={{ color: colores.text }}>
-            Sur Maderas · Mar del Plata · {new Date().getFullYear()}
+            JAN Orgánico Natural · Mar del Plata · {new Date().getFullYear()}
           </p>
         </div>
         <Briefcase size={36} style={{ color: colores.text, opacity: 0.3 }} />
@@ -1095,7 +1095,7 @@ export default function Comisiones() {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Comisiones</h1>
-        <p className="text-gray-400 text-sm mt-0.5">Sistema quincenal escalonado | Sur Maderas</p>
+        <p className="text-gray-400 text-sm mt-0.5">Sistema quincenal escalonado | JAN Orgánico Natural</p>
       </div>
 
       {/* KPIs */}

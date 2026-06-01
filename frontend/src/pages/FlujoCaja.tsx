@@ -169,12 +169,12 @@ function GuiaModal({ onClose }: { onClose: () => void }) {
             </div>
           </section>
 
-          {/* Caso Sur Maderas */}
+          {/* Caso JAN Orgánico Natural */}
           <section className="bg-amber-50 rounded-xl p-4 border border-amber-100">
             <div className="flex items-start gap-2">
               <Info size={14} className="text-amber-600 shrink-0 mt-0.5"/>
               <div>
-                <p className="text-xs font-bold text-amber-800 mb-1">¿Qué usar en Sur Maderas?</p>
+                <p className="text-xs font-bold text-amber-800 mb-1">¿Qué usar en JAN Orgánico Natural?</p>
                 <ul className="text-xs text-amber-700 space-y-1 leading-relaxed">
                   <li><strong>Contabilidad / libro contable:</strong> criterio devengado (lo exigen las normas NIIF y Ganancias).</li>
                   <li><strong>Este flujo de caja:</strong> criterio percibido — registrá los ingresos cuando el cliente paga y los egresos cuando efectivamente sale el dinero de la caja.</li>

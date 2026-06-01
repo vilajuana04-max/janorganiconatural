@@ -39,7 +39,7 @@ const CATEGORIES: { label: string; emoji: string; color: string }[] = [
   { label: 'Deportes',             emoji: '⚽', color: '#16a34a' },
   { label: 'Educación',            emoji: '🎓', color: '#7c3aed' },
   { label: 'Compras para la casa', emoji: '🛒', color: '#22c55e' },
-  { label: 'Tarjetas bancarias',   emoji: '💳', color: '#C8603A' },
+  { label: 'Tarjetas bancarias',   emoji: '💳', color: '#C4875A' },
 ]
 
 // Subcategorías por categoría
@@ -81,8 +81,8 @@ const PREDEF_PAY_METHODS: { key: PayMethod; label: string; color: string; bg: st
 // Métodos que requieren selección de banco
 const NEEDS_BANK = new Set<PayMethod>(['debito_automatico', 'tarjeta_credito', 'tarjeta_debito', 'transferencia'])
 
-const CORAL = '#C8603A'
-const NAVY  = '#070614'
+const CORAL = '#C4875A'
+const NAVY  = '#3D6B64'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(n: number) {

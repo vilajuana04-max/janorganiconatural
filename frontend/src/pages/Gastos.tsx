@@ -819,7 +819,7 @@ const DEFAULT_CAT_COLORS: Record<string, string> = {
 const COLOR_PALETTE = [
   '#3b82f6','#8b5cf6','#22c55e','#f97316','#06b6d4',
   '#ef4444','#eab308','#ec4899','#6366f1','#14b8a6',
-  '#f59e0b','#84cc16','#0ea5e9','#a855f7','#C8603A','#64748b',
+  '#f59e0b','#84cc16','#0ea5e9','#a855f7','#C4875A','#64748b',
 ]
 
 function hexToRgba(hex: string, alpha: number): string {

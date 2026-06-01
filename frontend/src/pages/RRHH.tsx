@@ -6,8 +6,8 @@ import {
 } from 'lucide-react'
 import { api, fmt$, MONTHS, CURRENT_YEAR, CURRENT_MONTH_IDX } from '../api'
 
-const NAVY  = '#070614'
-const CORAL = '#C8603A'
+const NAVY  = '#3D6B64'
+const CORAL = '#C4875A'
 const ALL_YEARS = [2024, 2025, 2026, 2027]
 const BRANCHES  = [
   { id: 1, name: 'LURO',         union: 'Madereros' },
@@ -66,7 +66,7 @@ export default function RRHH() {
       <div style={{ background: NAVY }} className="rounded-xl p-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p style={{ color: CORAL }} className="text-xs font-semibold tracking-widest uppercase mb-1 font-body">
-            Sur Maderas · ERP
+            JAN Orgánico Natural · ERP
           </p>
           <h1 className="text-2xl font-bold text-white font-head">Recursos Humanos</h1>
           <p className="text-white/50 text-sm font-body">{current.subtitle}</p>
@@ -584,7 +584,7 @@ const DAY_NAMES   = ['D','L','M','X','J','V','S']
 // Paleta determinista por empleado (misma lógica que proveedores en Compras)
 function empColor(name: string): string {
   const PALETTE = [
-    '#C8603A','#070614','#3b82f6','#10b981','#8b5cf6',
+    '#C4875A','#1E2B1A','#3b82f6','#10b981','#8b5cf6',
     '#f59e0b','#ef4444','#06b6d4','#84cc16','#ec4899','#6366f1',
   ]
   let h = 0
@@ -994,18 +994,18 @@ function SueldosTab() {
   const PAYSLIP_CSS = `
 ${pdfCSS}
 .card{border:1px solid #d1cec9;border-radius:4px;overflow:hidden;width:300px;margin:16px auto;page-break-inside:avoid;font-size:9.5pt}
-.hdr{background:#070614;color:#fff;padding:12px 14px}
+.hdr{background:#1E2B1A;color:#fff;padding:12px 14px}
 .co{font-size:11pt;font-weight:bold;letter-spacing:1px}
 .doc{font-size:7.5pt;color:rgba(255,255,255,.45);margin-top:1px}
-.emp{font-size:12pt;font-weight:bold;color:#C8603A;margin-top:6px}
+.emp{font-size:12pt;font-weight:bold;color:#C4875A;margin-top:6px}
 .per{font-size:8pt;color:rgba(255,255,255,.4);margin-top:2px}
 .tbl{width:100%;border-collapse:collapse;padding:0 14px}
 .tbl td{padding:4px 14px}
 .lbl{color:#444;width:65%}
 .val{text-align:right;font-weight:600;color:#111;width:35%}
 .sep{height:1px;background:#e5e2dd;padding:0}
-.perc-row .lbl{font-weight:bold;font-size:11pt;color:#070614;padding-top:7px;padding-bottom:7px}
-.perc-row .val{font-weight:bold;font-size:11pt;color:#C8603A;padding-top:7px;padding-bottom:7px}
+.perc-row .lbl{font-weight:bold;font-size:11pt;color:#1E2B1A;padding-top:7px;padding-bottom:7px}
+.perc-row .val{font-weight:bold;font-size:11pt;color:#C4875A;padding-top:7px;padding-bottom:7px}
 .firmas{display:flex;gap:12px;padding:10px 14px 12px;border-top:1px solid #e5e2dd}
 .firma{flex:1;border-top:1px solid #aaa;padding-top:3px;font-size:7pt;color:#888;text-align:center}
 `
@@ -1034,7 +1034,7 @@ ${buildPayslipCard(item, branchName)}
       const pct = factorToPct(m.plus_factor)
       const com = parseFloat(m.comision) || 0
       return `<tr style="background:${idx%2===0?'#fff':'#fafaf8'}">
-        <td style="text-align:center;color:#C8603A;font-weight:bold">${idx+1}</td>
+        <td style="text-align:center;color:#C4875A;font-weight:bold">${idx+1}</td>
         <td>${m.employee_name}</td>
         <td>${m.inasistencias_desc||'—'}</td>
         <td style="text-align:right">${parseFloat(m.adelanto)>0?fmtARS(parseFloat(m.adelanto)):'—'}</td>
@@ -1050,12 +1050,12 @@ ${buildPayslipCard(item, branchName)}
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>Sueldos ${branchName} ${month} ${year}</title>
 <style>${pdfCSS}
-h1{color:#070614;font-size:14pt;margin-bottom:4px}
+h1{color:#1E2B1A;font-size:14pt;margin-bottom:4px}
 p{color:#666;font-size:9pt;margin:0 0 12px}
 table{width:100%;border-collapse:collapse}
-th{background:#070614;color:#fff;padding:6px 8px;font-size:8pt;text-align:left}
+th{background:#1E2B1A;color:#fff;padding:6px 8px;font-size:8pt;text-align:left}
 td{padding:5px 8px;border-bottom:1px solid #eee;font-size:9pt}
-.tot td{background:#070614;color:#fff;font-weight:bold}
+.tot td{background:#1E2B1A;color:#fff;font-weight:bold}
 </style></head><body>
 <h1>Liquidación de Sueldos — ${branchName}</h1>
 <p>${month} ${year}</p>

@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { Trash2, Plus, Info, AlertTriangle, CheckCircle, XCircle, RefreshCw } from 'lucide-react'
 import { api, MONTHS, CURRENT_YEAR, CURRENT_MONTH_IDX } from '../api'
 
-const NAVY  = '#070614'
-const CORAL = '#C8603A'
+const NAVY  = '#3D6B64'
+const CORAL = '#C4875A'
 
 // ── Tipos ────────────────────────────────────────────────────────
 interface CostoExtra {

@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { Eye, EyeOff, LogIn } from 'lucide-react'
 
-const NAVY  = '#070614'
-const CORAL = '#C8603A'
+const NAVY  = '#1E2B1A'
+const CORAL = '#3D6B64'
 
 export default function Login() {
   const { login } = useAuth()
@@ -45,7 +45,7 @@ export default function Login() {
             className="text-[11px] font-bold tracking-[3px] uppercase mb-2"
             style={{ color: CORAL }}
           >
-            Sur Maderas
+            JAN Orgánico Natural
           </p>
           <h1 className="text-white text-3xl font-bold leading-tight mb-1">
             Sistema ERP
