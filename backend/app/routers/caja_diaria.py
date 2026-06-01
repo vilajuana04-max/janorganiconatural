@@ -12,8 +12,8 @@ from app.models.caja import CajaDiaria, CajaMovimiento
 
 router = APIRouter(prefix="/caja-diaria", tags=["caja-diaria"])
 
-NAVY_R,  NAVY_G,  NAVY_B  = 7,   6,  20   # #070614
-CORAL_R, CORAL_G, CORAL_B = 200, 96, 58   # #C8603A
+NAVY_R,  NAVY_G,  NAVY_B  = 30,  43,  26   # #1E2B1A
+CORAL_R, CORAL_G, CORAL_B = 196, 135, 90   # #C4875A
 
 # ── Schemas ──────────────────────────────────────────────────────
 class MovimientoIn(BaseModel):
@@ -114,7 +114,7 @@ def _serialize_caja(c: CajaDiaria) -> dict:
 def _generate_caja_pdf(data: dict) -> bytes:
     y_parts   = data["fecha"].split("-")
     fecha_str = f"{y_parts[2]}/{y_parts[1]}/{y_parts[0]}"
-    suc_label = "Sucursal Luro" if data["sucursal"] == "luro" else "Sucursal Independencia"
+    suc_label = "JAN Organico Natural"
     generado  = date.today().strftime("%d/%m/%Y")
 
     gastos  = [m for m in data["movimientos"] if m["tipo"] == "gasto"]
@@ -134,7 +134,7 @@ def _generate_caja_pdf(data: dict) -> bytes:
     pdf.set_font("Helvetica", "B", 22)
     pdf.set_text_color(NAVY_R, NAVY_G, NAVY_B)
     pdf.set_x(x0)
-    pdf.cell(W * 0.65, 10, "SUR MADERAS", ln=0)
+    pdf.cell(W * 0.65, 10, "JAN ORGANICO NATURAL", ln=0)
     pdf.set_font("Helvetica", "B", 13)
     pdf.set_text_color(CORAL_R, CORAL_G, CORAL_B)
     pdf.cell(W * 0.35, 10, "Cierre de Caja Diaria", ln=0, align="R")
@@ -245,8 +245,9 @@ def _generate_caja_pdf(data: dict) -> bytes:
     pdf.cell(col_w - 2, 8, _fmt(data["total_tarjetas"]), ln=0, align="R", fill=True)
     yT = row3_y + 8
     for idx, (label, key) in enumerate([
-            ("PROVINCIA", "tarjeta_provincia"), ("NAVE",   "tarjeta_nave"),
-            ("FRANCES",   "tarjeta_frances"),   ("COMAFI", "tarjeta_comafi")]):
+            ("CTA. DNI",    "tarjeta_provincia"),
+            ("MERCADO PAGO","tarjeta_nave"),
+            ("NARANJA",     "tarjeta_frances")]):
         bg = (250, 250, 252) if idx % 2 == 1 else (255, 255, 255)
         pdf.set_fill_color(*bg)
         pdf.set_xy(x_l, yT)
@@ -329,7 +330,7 @@ def _generate_caja_pdf(data: dict) -> bytes:
     pdf.set_font("Helvetica", "", 7)
     pdf.set_text_color(160, 160, 160)
     pdf.cell(W, 5,
-             "Sur Maderas  |  Mar del Plata  |  Sistema ERP v1.0  |  Documento interno",
+             "JAN Organico Natural  |  Mar del Plata  |  Sistema ERP v1.0  |  Documento interno",
              align="C")
 
     return bytes(pdf.output())

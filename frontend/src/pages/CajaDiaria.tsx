@@ -6,16 +6,16 @@ import {
   FileDown, History, CalendarDays, CheckCircle2, MessageCircle,
 } from 'lucide-react'
 
-// ── WhatsApp — número de Gustavo (sin + ni espacios) ─────────────
-const GUSTAVO_WA = '5492235203420'
+// ── WhatsApp — número de Mariana (sin + ni espacios) ─────────────
+const GUSTAVO_WA = '5492235203423'
 
-const CORAL = '#C8603A'
-const NAVY  = '#070614'
+const CORAL = '#C4875A'
+const NAVY  = '#1E2B1A'
 
 // ── Types ─────────────────────────────────────────────────────────
 type Mov = { id: number; tipo: string; descripcion: string; monto: number; categoria?: string }
 
-const GASTO_CATS = ['Proveedores', 'Limpieza', 'Insumos', 'Transporte', 'Servicios'] as const
+const GASTO_CATS = ['Materias Primas', 'Packaging', 'Envíos', 'Ferias', 'Servicios'] as const
 type GastoCat = typeof GASTO_CATS[number]
 
 type Caja = {
@@ -30,16 +30,13 @@ type Caja = {
   total_del_dia: number; total_salidas: number
 }
 
-const SUCURSALES = [
-  { key: 'luro',          label: 'Luro'          },
-  { key: 'independencia', label: 'Independencia' },
-]
+// JAN: sucursal única, sin selector
+const SUCURSAL_JAN = 'jan'
 
 const TERMINALES = [
-  { key: 'provincia', label: 'PROVINCIA' },
-  { key: 'nave',      label: 'NAVE'      },
-  { key: 'frances',   label: 'FRANCÉS'   },
-  { key: 'comafi',    label: 'COMAFI'    },
+  { key: 'provincia', label: 'CTA. DNI'     },
+  { key: 'nave',      label: 'MERCADO PAGO' },
+  { key: 'frances',   label: 'NARANJA'      },
 ]
 
 // ── Helpers ───────────────────────────────────────────────────────
@@ -197,7 +194,7 @@ function HistorialRow({ c, onVer, onPdf }: { c: Caja; onVer: () => void; onPdf: 
 export default function CajaDiaria() {
   const [tab,      setTab]      = useState<'caja'|'historial'>('caja')
   const [fecha,    setFecha]    = useState(today())
-  const [sucursal, setSucursal] = useState<string>('luro')
+  const sucursal = SUCURSAL_JAN   // JAN: sucursal única, sin selector
   const [caja,     setCaja]     = useState<Caja | null>(null)
   const [loading,  setLoading]  = useState(false)
   const [closing,  setClosing]  = useState(false)
@@ -275,10 +272,9 @@ export default function CajaDiaria() {
   function sendWhatsApp() {
     if (!caja) return
     const [y, m, d] = caja.fecha.split('-')
-    const sucLabel = caja.sucursal === 'luro' ? 'Luro' : 'Independencia'
     const msg = [
-      `📋 *Resumen del día — Sur Maderas*`,
-      `📅 ${d}/${m}/${y} | Sucursal ${sucLabel}`,
+      `📋 *Resumen del día — JAN Orgánico Natural*`,
+      `📅 ${d}/${m}/${y}`,
       ``,
       `🔄 Transferencias: ${fmt$(caja.total_transf)}`,
       `🔗 Link de pago: ${fmt$(caja.total_link ?? 0)}`,
@@ -301,7 +297,6 @@ export default function CajaDiaria() {
   // ── Ver día desde historial ──────────────────────────────────
   function verDia(c: Caja) {
     setFecha(c.fecha)
-    setSucursal(c.sucursal)
     setTab('caja')
   }
 
@@ -319,9 +314,7 @@ export default function CajaDiaria() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Caja Diaria</h1>
-          <p className="text-gray-400 text-sm mt-0.5">
-            {sucursal === 'luro' ? 'Sucursal Luro' : 'Sucursal Independencia'}
-          </p>
+          <p className="text-gray-400 text-sm mt-0.5">JAN Orgánico Natural</p>
         </div>
 
         {/* Tabs */}
@@ -339,7 +332,7 @@ export default function CajaDiaria() {
         </div>
       </div>
 
-      {/* ── Filters (shared) ── */}
+      {/* ── Filters ── */}
       <div className="flex flex-wrap gap-3">
         {tab === 'caja' && (
           <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2">
@@ -348,15 +341,6 @@ export default function CajaDiaria() {
               className="text-sm font-semibold text-gray-700 outline-none bg-transparent" />
           </div>
         )}
-        <div className="flex rounded-xl overflow-hidden border border-gray-200 bg-white">
-          {SUCURSALES.map(s => (
-            <button key={s.key} onClick={() => setSucursal(s.key)}
-              className="px-4 py-2 text-sm font-semibold transition-all"
-              style={sucursal === s.key ? { background: NAVY, color: 'white' } : { color: '#9ca3af' }}>
-              {s.label}
-            </button>
-          ))}
-        </div>
         {tab === 'caja' && caja && (
           <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold"
                style={caja.cerrada
@@ -497,7 +481,7 @@ export default function CajaDiaria() {
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-100" style={{ background: NAVY }}>
             <p className="text-white/60 text-[11px] font-bold tracking-[2px] uppercase">
-              Últimos 60 días — {sucursal === 'luro' ? 'Sucursal Luro' : 'Sucursal Independencia'}
+              Últimos 60 días — JAN Orgánico Natural
             </p>
           </div>
 

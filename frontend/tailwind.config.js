@@ -4,21 +4,21 @@ export default {
   theme: {
     extend: {
       colors: {
-        navy:    '#070614',
+        navy:    '#1E2B1A',
         coral: {
-          DEFAULT: '#C8603A',
-          dark:    '#A84E2C',
-          light:   '#f5ede9',
+          DEFAULT: '#C4875A',
+          dark:    '#A86E45',
+          light:   '#f5ede6',
         },
         brand: {
           black:     '#000000',
-          navy:      '#070614',
+          navy:      '#1E2B1A',
           charcoal:  '#464545',
-          coral:     '#C8603A',
-          'coral-dark': '#A84E2C',
+          coral:     '#C4875A',
+          'coral-dark': '#A86E45',
           white:     '#ffffff',
-          'off-white': '#f8f7f5',
-          border:    '#e8e5e0',
+          'off-white': '#f5f3f0',
+          border:    '#e5e0d8',
           body:      '#2c2c2c',
           muted:     '#888580',
         },

@@ -2,12 +2,12 @@ import React, { useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, ShoppingCart, Package,
-  Users, Receipt, Menu, X, ChevronDown, TrendingUp, Bell, Wallet, LogOut, BookOpen, Percent, Scale,
+  Receipt, Menu, X, ChevronDown, TrendingUp, Bell, Wallet, LogOut, BookOpen, Scale,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
-const NAVY  = '#070614'
-const CORAL = '#C8603A'
+const NAVY  = '#1E2B1A'
+const CORAL = '#C4875A'
 
 const NAV_MAIN = [
   { to: '/',        icon: LayoutDashboard, label: 'Dashboard', num: '01' },
@@ -24,7 +24,7 @@ const RRHH_SUB = [
 ]
 const GASTOS_SUB = [
   { tab: 'compartidos', label: 'Compartidos' },
-  { tab: 'luro',        label: 'Gastos Luro' },
+  { tab: 'luro',        label: 'Gastos JAN'  },
 ]
 
 /* ── Sidebar content (shared desktop/mobile) ─────────────────── */
@@ -35,12 +35,8 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
   const isAdmin      = user?.role === 'admin'
   const isCajaDiaria = user?.role === 'caja_diaria'
 
-  const isRRHH   = location.pathname === '/rrhh'   || location.pathname.startsWith('/rrhh')
   const isGastos = location.pathname === '/gastos' || location.pathname.startsWith('/gastos')
-  const [rrhhOpen,   setRrhhOpen]   = useState(isRRHH)
   const [gastosOpen, setGastosOpen] = useState(isGastos)
-
-  const activeTab = new URLSearchParams(location.search).get('tab') ?? 'vacaciones'
 
   const navLinkClass = (isActive: boolean) => [
     'flex items-center gap-3 px-7 py-3 text-sm font-semibold font-body',
@@ -61,7 +57,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
       <div className="px-7 py-6 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
         <p style={{ color: CORAL }}
           className="text-[11px] font-bold tracking-[3px] uppercase font-body mb-1">
-          Sur Maderas
+          JAN Orgánico Natural
         </p>
         <p className="text-white text-lg font-bold leading-tight font-head">
           Sistema ERP
@@ -84,7 +80,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
                 {user.username}
               </p>
               <p className="text-white/30 text-[10px] tracking-wide uppercase mt-0.5">
-                {user.role === 'admin' ? 'Administrador' : user.role === 'caja_diaria' ? 'Caja Diaria' : 'Acceso Caja'}
+                {user.role === 'admin' ? 'Administradora' : user.role === 'caja_diaria' ? 'Caja Diaria' : 'Acceso Caja'}
               </p>
             </div>
           </div>
@@ -119,50 +115,6 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         {/* ── Solo admin ── */}
         {isAdmin && (
           <>
-            {/* RRHH con submenú */}
-            <button
-              onClick={() => setRrhhOpen(o => !o)}
-              className={[
-                'w-full flex items-center gap-3 px-7 py-3 text-sm font-semibold font-body',
-                'border-l-[3px] transition-all duration-200 tracking-wide',
-                isRRHH
-                  ? 'text-white bg-white/5'
-                  : 'text-white/40 border-l-transparent hover:text-white/80 hover:bg-white/5',
-              ].join(' ')}
-              style={{ borderLeftColor: isRRHH ? CORAL : 'transparent' }}>
-              <span className="font-body text-[10px] font-bold tracking-[1.5px]" style={{ color: CORAL }}>05</span>
-              <Users size={16} strokeWidth={2} />
-              <span className="tracking-[1px] uppercase text-[12px] flex-1 text-left">Rec. Humanos</span>
-              <ChevronDown
-                size={14}
-                className="transition-transform duration-200 shrink-0"
-                style={{ transform: rrhhOpen ? 'rotate(180deg)' : 'rotate(0deg)', opacity: 0.6 }}
-              />
-            </button>
-            {rrhhOpen && (
-              <div className="pb-1" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                {RRHH_SUB.map(({ tab, label }) => {
-                  const isActive = isRRHH && activeTab === tab
-                  return (
-                    <NavLink
-                      key={tab}
-                      to={`/rrhh?tab=${tab}`}
-                      onClick={onClose}
-                      className={[
-                        'flex items-center gap-2 pl-14 pr-7 py-2 text-[11px] font-semibold font-body',
-                        'border-l-[3px] transition-all duration-150',
-                        isActive
-                          ? 'text-white bg-white/5'
-                          : 'text-white/35 border-l-transparent hover:text-white/70 hover:bg-white/5',
-                      ].join(' ')}
-                      style={{ borderLeftColor: isActive ? CORAL : 'transparent' }}>
-                      <span className="tracking-wide">{label}</span>
-                    </NavLink>
-                  )
-                })}
-              </div>
-            )}
-
             {/* Gastos con submenú */}
             <button
               onClick={() => setGastosOpen(o => !o)}
@@ -228,17 +180,6 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
               <span className="font-body text-[10px] font-bold tracking-[1.5px]" style={{ color: CORAL }}>08</span>
               <Bell size={16} strokeWidth={2} />
               <span className="tracking-[1px] uppercase text-[12px]">Vencimientos</span>
-            </NavLink>
-
-            {/* Comisiones */}
-            <NavLink
-              to="/comisiones"
-              onClick={onClose}
-              className={({ isActive }) => navLinkClass(isActive)}
-              style={({ isActive }) => ({ borderLeftColor: isActive ? CORAL : 'transparent' })}>
-              <span className="font-body text-[10px] font-bold tracking-[1.5px]" style={{ color: CORAL }}>10</span>
-              <Percent size={16} strokeWidth={2} />
-              <span className="tracking-[1px] uppercase text-[12px]">Comisiones</span>
             </NavLink>
 
             {/* Punto de Equilibrio */}

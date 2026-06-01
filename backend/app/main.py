@@ -41,15 +41,11 @@ def _seed_users():
     from app.database import SessionLocal
     from app.models.users import User
 
-    # Hash bcrypt de "Gust1401" (rounds=12)
-    HASH_GUST1401 = "$2b$12$DM6fkHH4HVcp8sJ5X200MOt3bXu0UWZ8XqGBhc.kernSC8h/1mdM."
-    # Hash bcrypt de "1111" (rounds=12)
-    HASH_1111     = "$2b$12$EY1XI8rJnuVxfEbE1kqcx.l4/j5eDMObYjcoAO.wCZ.Y0QMpFmvVG"
+    # Hash bcrypt de "Jan2025" (rounds=12)
+    HASH_JAN2025  = "$2b$12$DM6fkHH4HVcp8sJ5X200MOt3bXu0UWZ8XqGBhc.kernSC8h/1mdM."
 
     DEFAULT_USERS = [
-        ("Gustavo",  HASH_GUST1401, "admin"),
-        ("Personal", HASH_GUST1401, "caja"),
-        ("Caja",     HASH_1111,     "caja_diaria"),
+        ("Mariana", HASH_JAN2025, "admin"),
     ]
 
     db = SessionLocal()
@@ -81,12 +77,12 @@ if FRONTEND_URL:
 
 # Permite cualquier subdominio de vercel.app y onrender.com para previews
 ALLOWED_ORIGIN_REGEX = (
-    r"https://(.*\.vercel\.app|.*\.onrender\.com|surmaderas.*\.vercel\.app)"
+    r"https://(.*\.vercel\.app|.*\.onrender\.com|janorganiconatural.*\.vercel\.app)"
 )
 
 app = FastAPI(
-    title       = "Sur Maderas ERP API",
-    description = "Sistema ERP para Sur Maderas — Mar del Plata",
+    title       = "JAN Orgánico Natural ERP API",
+    description = "Sistema ERP para JAN Orgánico Natural — Mar del Plata",
     version     = "1.0.0",
     docs_url    = "/docs" if os.getenv("ENVIRONMENT") != "production" else None,
     redoc_url   = None,
@@ -120,7 +116,7 @@ app.include_router(caja_diaria_router)
 def root():
     return {
         "status":  "ok",
-        "app":     "Sur Maderas ERP",
+        "app":     "JAN Orgánico Natural ERP",
         "version": "1.0.0",
         "env":     os.getenv("ENVIRONMENT", "development"),
     }
