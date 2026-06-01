@@ -1,31 +1,105 @@
 import React, { useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
-  LayoutDashboard, ShoppingCart, Package,
-  Receipt, Menu, X, ChevronDown, TrendingUp, Bell, Wallet, LogOut, BookOpen, Scale, FlaskConical,
+  LayoutDashboard, ShoppingCart, FlaskConical,
+  Menu, X, ChevronDown, Wallet, LogOut, BookOpen,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 const NAVY  = '#1E2B1A'
 const CORAL = '#C4875A'
 
-const NAV_MAIN = [
-  { to: '/',        icon: LayoutDashboard, label: 'Dashboard', num: '01' },
-  { to: '/ventas',  icon: ShoppingCart,    label: 'Ventas',    num: '02' },
-  { to: '/compras', icon: Package,         label: 'Compras',   num: '03' },
+/* ── Estructura de navegación ──────────────────────────────────── */
+const FINANZAS_ITEMS = [
+  { to: '/compras',           label: 'Compras'         },
+  { to: '/gastos',            label: 'Gastos JAN'      },
+  { to: '/gastos-personales', label: 'Gastos Pers.'    },
+  { to: '/flujocaja',         label: 'Flujo de Caja'   },
+  { to: '/vencimientos',      label: 'Vencimientos'    },
+  { to: '/punto-equilibrio',  label: 'Pto. Equilibrio' },
 ]
-const RRHH_SUB = [
-  { tab: 'vacaciones', label: 'Vacaciones' },
-  { tab: 'calendario', label: 'Calendario' },
-  { tab: 'sueldos',    label: 'Sueldos'    },
-  { tab: 'recibos',    label: 'Recibos'    },
-  { tab: 'dashboard',  label: 'Dashboard'  },
-  { tab: 'ajustes',    label: 'Ajustes'    },
+const COMERCIAL_ITEMS = [
+  { to: '/ventas',    label: 'Ventas'    },
+  { to: '/compras',   label: 'Compras'   },
+  { to: '/productos', label: 'Productos' },
 ]
-const GASTOS_SUB = [
-  { tab: 'compartidos', label: 'Compartidos' },
-  { tab: 'luro',        label: 'Gastos JAN'  },
+const PRODUCCION_ITEMS = [
+  { to: '/costos', label: 'Costos' },
+  { to: '/stock',  label: 'Stock'  },
 ]
+
+const FINANZAS_PATHS   = FINANZAS_ITEMS.map(i => i.to)
+const COMERCIAL_PATHS  = COMERCIAL_ITEMS.map(i => i.to)
+const PRODUCCION_PATHS = PRODUCCION_ITEMS.map(i => i.to)
+
+/* ── SubItem link ────────────────────────────────────────────── */
+function SubItem({ to, label, onClose }: { to: string; label: string; onClose?: () => void }) {
+  const location = useLocation()
+  const isActive = location.pathname === to
+
+  return (
+    <NavLink
+      to={to}
+      onClick={onClose}
+      className={[
+        'flex items-center pl-14 pr-7 py-2 text-[11px] font-semibold font-body',
+        'border-l-[3px] transition-all duration-150 tracking-wide',
+        isActive
+          ? 'text-white bg-white/5'
+          : 'text-white/35 border-l-transparent hover:text-white/70 hover:bg-white/5',
+      ].join(' ')}
+      style={{ borderLeftColor: isActive ? CORAL : 'transparent' }}>
+      {label}
+    </NavLink>
+  )
+}
+
+/* ── Section group (colapsable) ──────────────────────────────── */
+function SectionGroup({
+  num, icon: Icon, label, items, onClose, paths,
+}: {
+  num: string
+  icon: React.ElementType
+  label: string
+  items: { to: string; label: string }[]
+  onClose?: () => void
+  paths: string[]
+}) {
+  const location = useLocation()
+  const isActive = paths.some(p => location.pathname === p || location.pathname.startsWith(p + '/'))
+  const [open, setOpen] = useState(isActive)
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={[
+          'w-full flex items-center gap-3 px-7 py-3 text-sm font-semibold font-body',
+          'border-l-[3px] transition-all duration-200 tracking-wide',
+          isActive
+            ? 'text-white bg-white/5'
+            : 'text-white/40 border-l-transparent hover:text-white/80 hover:bg-white/5',
+        ].join(' ')}
+        style={{ borderLeftColor: isActive ? CORAL : 'transparent' }}>
+        <span className="font-body text-[10px] font-bold tracking-[1.5px]" style={{ color: CORAL }}>{num}</span>
+        <Icon size={16} strokeWidth={2} />
+        <span className="tracking-[1px] uppercase text-[12px] flex-1 text-left">{label}</span>
+        <ChevronDown
+          size={14}
+          className="transition-transform duration-200 shrink-0"
+          style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', opacity: 0.6 }}
+        />
+      </button>
+      {open && (
+        <div className="pb-1" style={{ background: 'rgba(255,255,255,0.03)' }}>
+          {items.map(item => (
+            <SubItem key={item.to} to={item.to} label={item.label} onClose={onClose} />
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
 
 /* ── Sidebar content (shared desktop/mobile) ─────────────────── */
 function SidebarContent({ onClose }: { onClose?: () => void }) {
@@ -34,9 +108,6 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
   const { user, logout } = useAuth()
   const isAdmin      = user?.role === 'admin'
   const isCajaDiaria = user?.role === 'caja_diaria'
-
-  const isGastos = location.pathname === '/gastos' || location.pathname.startsWith('/gastos')
-  const [gastosOpen, setGastosOpen] = useState(isGastos)
 
   const navLinkClass = (isActive: boolean) => [
     'flex items-center gap-3 px-7 py-3 text-sm font-semibold font-body',
@@ -89,131 +160,62 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 
       {/* Nav */}
       <nav className="flex-1 py-6 overflow-y-auto">
-        {/* Dashboard, Ventas, Compras — oculto para caja_diaria */}
-        {!isCajaDiaria && NAV_MAIN.map(({ to, icon: Icon, label, num }) => (
-          <NavLink key={to} to={to} end={to === '/'}
-            onClick={onClose}
+
+        {/* ── 01 Dashboard — oculto para caja_diaria ── */}
+        {!isCajaDiaria && (
+          <NavLink to="/" end onClick={onClose}
             className={({ isActive }) => navLinkClass(isActive)}
             style={({ isActive }) => ({ borderLeftColor: isActive ? CORAL : 'transparent' })}>
-            <span className="font-body text-[10px] font-bold tracking-[1.5px]" style={{ color: CORAL }}>{num}</span>
-            <Icon size={16} strokeWidth={2} />
-            <span className="tracking-[1px] uppercase text-[12px]">{label}</span>
+            <span className="font-body text-[10px] font-bold tracking-[1.5px]" style={{ color: CORAL }}>01</span>
+            <LayoutDashboard size={16} strokeWidth={2} />
+            <span className="tracking-[1px] uppercase text-[12px]">Dashboard</span>
           </NavLink>
-        ))}
+        )}
 
-        {/* ── Caja Diaria — visible para todos ── */}
-        <NavLink
-          to="/caja-diaria"
-          onClick={onClose}
+        {/* ── 02 Caja Diaria — visible para todos ── */}
+        <NavLink to="/caja-diaria" onClick={onClose}
           className={({ isActive }) => navLinkClass(isActive)}
           style={({ isActive }) => ({ borderLeftColor: isActive ? CORAL : 'transparent' })}>
-          <span className="font-body text-[10px] font-bold tracking-[1.5px]" style={{ color: CORAL }}>04</span>
+          <span className="font-body text-[10px] font-bold tracking-[1.5px]" style={{ color: CORAL }}>02</span>
           <BookOpen size={16} strokeWidth={2} />
           <span className="tracking-[1px] uppercase text-[12px]">Caja Diaria</span>
         </NavLink>
 
-        {/* ── Solo admin ── */}
+        {/* ── Secciones admin ── */}
         {isAdmin && (
           <>
-            {/* Gastos con submenú */}
-            <button
-              onClick={() => setGastosOpen(o => !o)}
-              className={[
-                'w-full flex items-center gap-3 px-7 py-3 text-sm font-semibold font-body',
-                'border-l-[3px] transition-all duration-200 tracking-wide',
-                isGastos
-                  ? 'text-white bg-white/5'
-                  : 'text-white/40 border-l-transparent hover:text-white/80 hover:bg-white/5',
-              ].join(' ')}
-              style={{ borderLeftColor: isGastos ? CORAL : 'transparent' }}>
-              <span className="font-body text-[10px] font-bold tracking-[1.5px]" style={{ color: CORAL }}>06</span>
-              <Receipt size={16} strokeWidth={2} />
-              <span className="tracking-[1px] uppercase text-[12px] flex-1 text-left">Gastos</span>
-              <ChevronDown
-                size={14}
-                className="transition-transform duration-200 shrink-0"
-                style={{ transform: gastosOpen ? 'rotate(180deg)' : 'rotate(0deg)', opacity: 0.6 }}
-              />
-            </button>
-            {gastosOpen && (
-              <div className="pb-1" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                {GASTOS_SUB.map(({ tab, label }) => {
-                  const activeGastosTab = new URLSearchParams(location.search).get('tab') ?? 'compartidos'
-                  const isActive = isGastos && activeGastosTab === tab
-                  return (
-                    <NavLink
-                      key={tab}
-                      to={`/gastos?tab=${tab}`}
-                      onClick={onClose}
-                      className={[
-                        'flex items-center gap-2 pl-14 pr-7 py-2 text-[11px] font-semibold font-body',
-                        'border-l-[3px] transition-all duration-150',
-                        isActive
-                          ? 'text-white bg-white/5'
-                          : 'text-white/35 border-l-transparent hover:text-white/70 hover:bg-white/5',
-                      ].join(' ')}
-                      style={{ borderLeftColor: isActive ? CORAL : 'transparent' }}>
-                      <span className="tracking-wide">{label}</span>
-                    </NavLink>
-                  )
-                })}
-              </div>
-            )}
+            {/* Separador */}
+            <div className="mx-7 my-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }} />
 
-            {/* Flujo de Caja */}
-            <NavLink
-              to="/flujocaja"
-              onClick={onClose}
-              className={({ isActive }) => navLinkClass(isActive)}
-              style={({ isActive }) => ({ borderLeftColor: isActive ? CORAL : 'transparent' })}>
-              <span className="font-body text-[10px] font-bold tracking-[1.5px]" style={{ color: CORAL }}>07</span>
-              <TrendingUp size={16} strokeWidth={2} />
-              <span className="tracking-[1px] uppercase text-[12px]">Flujo de Caja</span>
-            </NavLink>
+            {/* 03 Finanzas */}
+            <SectionGroup
+              num="03"
+              icon={Wallet}
+              label="Finanzas"
+              items={FINANZAS_ITEMS}
+              paths={FINANZAS_PATHS}
+              onClose={onClose}
+            />
 
-            {/* Vencimientos */}
-            <NavLink
-              to="/vencimientos"
-              onClick={onClose}
-              className={({ isActive }) => navLinkClass(isActive)}
-              style={({ isActive }) => ({ borderLeftColor: isActive ? CORAL : 'transparent' })}>
-              <span className="font-body text-[10px] font-bold tracking-[1.5px]" style={{ color: CORAL }}>08</span>
-              <Bell size={16} strokeWidth={2} />
-              <span className="tracking-[1px] uppercase text-[12px]">Vencimientos</span>
-            </NavLink>
+            {/* 04 Comercial */}
+            <SectionGroup
+              num="04"
+              icon={ShoppingCart}
+              label="Comercial"
+              items={COMERCIAL_ITEMS}
+              paths={COMERCIAL_PATHS}
+              onClose={onClose}
+            />
 
-            {/* Costos y Precios */}
-            <NavLink
-              to="/costos"
-              onClick={onClose}
-              className={({ isActive }) => navLinkClass(isActive)}
-              style={({ isActive }) => ({ borderLeftColor: isActive ? CORAL : 'transparent' })}>
-              <span className="font-body text-[10px] font-bold tracking-[1.5px]" style={{ color: CORAL }}>05</span>
-              <FlaskConical size={16} strokeWidth={2} />
-              <span className="tracking-[1px] uppercase text-[12px]">Costos</span>
-            </NavLink>
-
-            {/* Punto de Equilibrio */}
-            <NavLink
-              to="/punto-equilibrio"
-              onClick={onClose}
-              className={({ isActive }) => navLinkClass(isActive)}
-              style={({ isActive }) => ({ borderLeftColor: isActive ? CORAL : 'transparent' })}>
-              <span className="font-body text-[10px] font-bold tracking-[1.5px]" style={{ color: CORAL }}>11</span>
-              <Scale size={16} strokeWidth={2} />
-              <span className="tracking-[1px] uppercase text-[12px]">Punto Equilibrio</span>
-            </NavLink>
-
-            {/* Gastos Personales */}
-            <NavLink
-              to="/gastos-personales"
-              onClick={onClose}
-              className={({ isActive }) => navLinkClass(isActive)}
-              style={({ isActive }) => ({ borderLeftColor: isActive ? CORAL : 'transparent' })}>
-              <span className="font-body text-[10px] font-bold tracking-[1.5px]" style={{ color: CORAL }}>09</span>
-              <Wallet size={16} strokeWidth={2} />
-              <span className="tracking-[1px] uppercase text-[12px]">Gastos Pers.</span>
-            </NavLink>
+            {/* 05 Producción */}
+            <SectionGroup
+              num="05"
+              icon={FlaskConical}
+              label="Producción"
+              items={PRODUCCION_ITEMS}
+              paths={PRODUCCION_PATHS}
+              onClose={onClose}
+            />
           </>
         )}
       </nav>

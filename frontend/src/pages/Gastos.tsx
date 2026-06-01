@@ -1,9 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
 import { Plus, Trash2, FileDown, Pencil, Check, X, Settings, Lock, Unlock, History } from 'lucide-react'
 import { api, fmt$, MONTHS, CURRENT_YEAR } from '../api'
-
-type Tab = 'compartidos' | 'luro'
 
 // ── Items fijos — editar aquí para agregar/quitar filas permanentes ──────────
 // split: 'half'  → Indep paga el 50%  (se auto-calcula al ingresar Total)
@@ -37,30 +34,22 @@ const FIXED_ITEMS: { key: string; name: string; category: string; split: SplitTy
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function Gastos() {
-  const location  = useLocation()
-  const navigate  = useNavigate()
-  const tabParam  = (new URLSearchParams(location.search).get('tab') ?? 'compartidos') as Tab
-
-  const [month, setMonth] = useState('MAYO')
+  const [month, setMonth] = useState(MONTHS[new Date().getMonth()] ?? 'MAYO')
   const year = CURRENT_YEAR
-
-  const setTab = (t: Tab) => navigate(`/gastos?tab=${t}`, { replace: true })
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Gastos</h1>
-          <p className="text-brand-muted text-sm">Compartidos entre sucursales · Gastos Luro</p>
+          <h1 className="text-2xl font-bold">Gastos JAN</h1>
+          <p className="text-brand-muted text-sm">Registro mensual de gastos del emprendimiento</p>
         </div>
         <select value={month} onChange={e => setMonth(e.target.value)} className="input w-36 text-sm">
           {MONTHS.map(m => <option key={m}>{m}</option>)}
         </select>
       </div>
 
-      {tabParam === 'compartidos'
-        ? <GastosCompartidos month={month} year={year} onMonthChange={setMonth} />
-        : <GastosLuro        month={month} year={year} onMonthChange={setMonth} />}
+      <GastosLuro month={month} year={year} onMonthChange={setMonth} />
     </div>
   )
 }

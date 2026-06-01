@@ -16,6 +16,8 @@ import CajaDiaria       from './pages/CajaDiaria'
 import Comisiones        from './pages/Comisiones'
 import PuntoEquilibrio  from './pages/PuntoEquilibrio'
 import Costos           from './pages/Costos'
+import Productos        from './pages/Productos'
+import Stock            from './pages/Stock'
 
 export default function App() {
   return (
@@ -148,6 +150,28 @@ export default function App() {
             <ProtectedRoute requiredRole="admin">
               <Layout>
                 <Costos />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ── Productos & Stock (admin) ── */}
+        <Route
+          path="/productos"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <Layout>
+                <Productos />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/stock"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <Layout>
+                <Stock />
               </Layout>
             </ProtectedRoute>
           }
