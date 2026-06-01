@@ -388,23 +388,9 @@ def _seed_costos():
 _seed_costos()
 
 # ── CORS ────────────────────────────────────────────────────────
-# En producción, solo el frontend de Vercel/Render puede conectarse.
-# En desarrollo, se permiten localhost.
-FRONTEND_URL = os.getenv("FRONTEND_URL", "")
-
-ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://localhost:5173",
-]
-
-if FRONTEND_URL:
-    ALLOWED_ORIGINS.append(FRONTEND_URL)
-
-# Permite cualquier subdominio de vercel.app y onrender.com para previews
-ALLOWED_ORIGIN_REGEX = (
-    r"https://(.*\.vercel\.app|.*\.onrender\.com|janorganiconatural.*\.vercel\.app)"
-)
-
+# La API está protegida por JWT — abrir CORS no es un riesgo.
+# allow_credentials=False + allow_origins=["*"] evita el edge case
+# de Starlette donde el preflight de POST falla con regex + credentials.
 app = FastAPI(
     title       = "JAN Orgánico Natural ERP API",
     description = "Sistema ERP para JAN Orgánico Natural — Mar del Plata",
@@ -415,11 +401,10 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins       = ALLOWED_ORIGINS,
-    allow_origin_regex  = ALLOWED_ORIGIN_REGEX,
-    allow_credentials   = True,
-    allow_methods       = ["*"],
-    allow_headers       = ["*"],
+    allow_origins     = ["*"],
+    allow_credentials = False,
+    allow_methods     = ["*"],
+    allow_headers     = ["*"],
 )
 
 app.include_router(auth_router)
