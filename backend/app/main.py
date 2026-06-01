@@ -9,7 +9,7 @@ from app.routers import (
     sales_router, purchases_router, payroll_router,
     vacations_router, expenses_router, dashboard_router, employees_router,
     receipts_router, cashflow_router, vencimientos_router, gastos_personales_router,
-    caja_diaria_router, costos_router,
+    caja_diaria_router, costos_router, ventas_jan_router,
 )
 
 Base.metadata.create_all(bind=engine)
@@ -27,6 +27,24 @@ def _run_migrations():
         db.execute(text(
             "ALTER TABLE luro_expenses ADD COLUMN IF NOT EXISTS caja_id INTEGER;"
         ))
+        # Tabla ventas JAN (se crea via SQLAlchemy create_all, pero asegurar columnas)
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS ventas_jan (
+                id              SERIAL PRIMARY KEY,
+                fecha           DATE NOT NULL,
+                year            INTEGER NOT NULL,
+                month           VARCHAR(20) NOT NULL,
+                producto        VARCHAR(200) NOT NULL,
+                categoria       VARCHAR(50) NOT NULL,
+                cantidad        NUMERIC(10,2) NOT NULL DEFAULT 1,
+                precio_unitario NUMERIC(15,2) NOT NULL,
+                total           NUMERIC(15,2) NOT NULL,
+                canal           VARCHAR(50) NOT NULL,
+                medio_pago      VARCHAR(50) NOT NULL,
+                notas           VARCHAR(400) DEFAULT '',
+                created_at      TIMESTAMP DEFAULT NOW()
+            );
+        """))
         db.commit()
     except Exception as e:
         print(f"[migration] Error: {e}")
@@ -374,6 +392,7 @@ app.include_router(vencimientos_router)
 app.include_router(gastos_personales_router)
 app.include_router(caja_diaria_router)
 app.include_router(costos_router)
+app.include_router(ventas_jan_router)
 
 
 @app.get("/")
