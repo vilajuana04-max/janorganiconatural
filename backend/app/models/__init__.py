@@ -11,6 +11,7 @@ from .cashflow import CashFlowEntry
 from .receipts import PayslipUpload
 from .vencimientos import Vencimiento, VencimientoEstado, VencimientoOneOff
 from .gastos_personales import GastoPersonal
+from .costos import InsumoJAN, RecetaJAN
 
 __all__ = [
     "User",
