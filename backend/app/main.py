@@ -403,8 +403,10 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins     = ["*"],
     allow_credentials = False,
-    allow_methods     = ["*"],
-    allow_headers     = ["*"],
+    allow_methods     = ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers     = ["Authorization", "Content-Type", "Accept", "Origin",
+                         "X-Requested-With", "Access-Control-Request-Method",
+                         "Access-Control-Request-Headers"],
 )
 
 app.include_router(auth_router)

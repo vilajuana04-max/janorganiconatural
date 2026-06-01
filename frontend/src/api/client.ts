@@ -13,6 +13,7 @@ async function req<T>(path: string, opts?: RequestInit): Promise<T> {
   let res: Response
   try {
     res = await fetch(url, {
+      credentials: 'omit',                        // no cookies, permite CORS con allow_origins=["*"]
       headers: { 'Content-Type': 'application/json', ...authHeaders(), ...opts?.headers },
       ...opts,
     })
