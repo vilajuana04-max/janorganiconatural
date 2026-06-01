@@ -1,6 +1,7 @@
 // En producción, VITE_API_URL apunta a https://surmaderas-api.onrender.com
 // En desarrollo, usa el proxy de Vite (/api → localhost:8000)
-const BASE = import.meta.env.VITE_API_URL ?? ''
+// Eliminamos trailing slash para evitar doble // en las URLs
+const BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
 
 function authHeaders(): Record<string, string> {
   const token = localStorage.getItem('erp_token')
@@ -9,10 +10,17 @@ function authHeaders(): Record<string, string> {
 
 async function req<T>(path: string, opts?: RequestInit): Promise<T> {
   const url = `${BASE}${path}`
-  const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...authHeaders(), ...opts?.headers },
-    ...opts,
-  })
+  let res: Response
+  try {
+    res = await fetch(url, {
+      headers: { 'Content-Type': 'application/json', ...authHeaders(), ...opts?.headers },
+      ...opts,
+    })
+  } catch (networkErr) {
+    // Error de red: CORS, server caído, timeout, etc.
+    const method = opts?.method ?? 'GET'
+    throw new Error(`Error de red [${method} ${url}]: ${networkErr instanceof Error ? networkErr.message : 'Failed to fetch'}`)
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText)
     throw new Error(`${res.status}: ${text}`)
