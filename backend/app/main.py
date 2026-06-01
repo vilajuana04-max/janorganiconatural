@@ -52,6 +52,8 @@ def _run_migrations():
             "ALTER TABLE ventas_jan ADD COLUMN IF NOT EXISTS estado_pago  VARCHAR(15) DEFAULT 'pagado';",
             "ALTER TABLE ventas_jan ADD COLUMN IF NOT EXISTS cliente_tipo VARCHAR(20) DEFAULT 'cliente_final';",
             "ALTER TABLE ventas_jan ADD COLUMN IF NOT EXISTS cliente_id   INTEGER;",
+            # medio_pago era NOT NULL en la tabla original — lo hacemos nullable
+            "ALTER TABLE ventas_jan ALTER COLUMN medio_pago DROP NOT NULL;",
         ]:
             db.execute(text(col))
 
