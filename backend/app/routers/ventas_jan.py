@@ -134,55 +134,62 @@ def list_ventas(year: int, month: str, db: Session = Depends(get_db)):
 
 @router.post("/", status_code=201)
 def create_venta(body: VentaIn, db: Session = Depends(get_db)):
-    month_label = MONTHS[body.fecha.month - 1]
-    total = round(body.cantidad * body.precio_unitario, 2)
+    try:
+        month_label = MONTHS[body.fecha.month - 1]
+        total = round(body.cantidad * body.precio_unitario, 2)
 
-    # Validación CC: solo para cliente registrado
-    if body.metodo_pago == "Cuenta Corriente" and body.cliente_tipo != "cliente_registrado":
-        raise HTTPException(
-            status_code=422,
-            detail="Cuenta Corriente solo está disponible para clientes registrados."
-        )
+        if body.metodo_pago == "Cuenta Corriente" and body.cliente_tipo != "cliente_registrado":
+            raise HTTPException(
+                status_code=422,
+                detail="Cuenta Corriente solo está disponible para clientes registrados."
+            )
 
-    es_cc = (body.metodo_pago == "Cuenta Corriente" and
-             body.cliente_tipo == "cliente_registrado" and
-             body.cliente_id is not None)
+        es_cc = (body.metodo_pago == "Cuenta Corriente" and
+                 body.cliente_tipo == "cliente_registrado" and
+                 body.cliente_id is not None)
 
-    v = VentaJAN(
-        fecha           = body.fecha,
-        year            = body.fecha.year,
-        month           = month_label,
-        producto        = body.producto.strip(),
-        categoria       = body.categoria,
-        cantidad        = body.cantidad,
-        precio_unitario = body.precio_unitario,
-        total           = total,
-        canal           = body.canal,
-        medio_pago      = body.medio_pago,
-        metodo_pago     = body.metodo_pago,
-        estado_pago     = "pendiente" if es_cc else "pagado",
-        cliente_tipo    = body.cliente_tipo or "cliente_final",
-        cliente_id      = body.cliente_id,
-        notas           = body.notas or '',
-    )
-    db.add(v)
-    db.flush()  # obtener v.id antes de crear CC
-
-    # Crear entrada en cuenta corriente si aplica
-    if es_cc:
-        cc = CuentaCorrienteJAN(
+        v = VentaJAN(
+            fecha           = body.fecha,
+            year            = body.fecha.year,
+            month           = month_label,
+            producto        = body.producto.strip(),
+            categoria       = body.categoria,
+            cantidad        = body.cantidad,
+            precio_unitario = body.precio_unitario,
+            total           = total,
+            canal           = body.canal,
+            medio_pago      = body.medio_pago,
+            metodo_pago     = body.metodo_pago,
+            estado_pago     = "pendiente" if es_cc else "pagado",
+            cliente_tipo    = body.cliente_tipo or "cliente_final",
             cliente_id      = body.cliente_id,
-            venta_id        = v.id,
-            monto_original  = total,
-            monto_pendiente = total,
-            estado          = "pendiente",
-            fecha_venta     = body.fecha,
+            notas           = body.notas or '',
         )
-        db.add(cc)
+        db.add(v)
+        db.flush()
 
-    db.commit()
-    db.refresh(v)
-    return _serialize(v)
+        if es_cc:
+            cc = CuentaCorrienteJAN(
+                cliente_id      = body.cliente_id,
+                venta_id        = v.id,
+                monto_original  = total,
+                monto_pendiente = total,
+                estado          = "pendiente",
+                fecha_venta     = body.fecha,
+            )
+            db.add(cc)
+
+        db.commit()
+        db.refresh(v)
+        return _serialize(v)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        # Devolvemos el error como HTTPException para que FastAPI
+        # lo serialice correctamente con headers CORS incluidos
+        raise HTTPException(status_code=500, detail=f"[DB] {type(e).__name__}: {str(e)}")
 
 
 @router.put("/{venta_id}")
