@@ -87,8 +87,8 @@ function VentaModal({
     try {
       await onSave(form)
       onClose()
-    } catch {
-      setError('Error al guardar. Intentá de nuevo.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al guardar. Intentá de nuevo.')
     } finally {
       setSaving(false)
     }
