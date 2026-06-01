@@ -91,8 +91,8 @@ function VentaModal({
   // Cargar lista de clientes cuando se selecciona cliente_registrado
   useEffect(() => {
     if (form.cliente_tipo === 'cliente_registrado' && clientes.length === 0) {
-      api.get<{ clientes: ClienteOption[] }>('/clientes-jan/')
-        .then(res => setClientes(res.clientes ?? []))
+      api.get<ClienteOption[]>('/clientes-jan/')
+        .then(res => setClientes(Array.isArray(res) ? res : []))
         .catch(() => {})
     }
   }, [form.cliente_tipo])
