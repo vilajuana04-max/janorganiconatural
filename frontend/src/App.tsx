@@ -20,6 +20,7 @@ import Productos        from './pages/Productos'
 import Stock            from './pages/Stock'
 import Clientes         from './pages/Clientes'
 import CuentaCorriente  from './pages/CuentaCorriente'
+import Presupuestos     from './pages/Presupuestos'
 
 export default function App() {
   return (
@@ -196,6 +197,18 @@ export default function App() {
             <ProtectedRoute requiredRole="admin">
               <Layout>
                 <CuentaCorriente />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ── Presupuestos (admin) ── */}
+        <Route
+          path="/presupuestos"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <Layout>
+                <Presupuestos />
               </Layout>
             </ProtectedRoute>
           }

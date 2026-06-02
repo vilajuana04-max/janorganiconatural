@@ -23,9 +23,10 @@ const CLIENTES_ITEMS = [
   { to: '/cuenta-corriente',  label: 'Saldo CC'         },
 ]
 const COMERCIAL_ITEMS = [
-  { to: '/ventas',    label: 'Ventas'    },
-  { to: '/compras',   label: 'Compras'   },
-  { to: '/productos', label: 'Productos' },
+  { to: '/ventas',        label: 'Ventas'        },
+  { to: '/compras',       label: 'Compras'       },
+  { to: '/productos',     label: 'Productos'     },
+  { to: '/presupuestos',  label: 'Presupuestos'  },
 ]
 const PRODUCCION_ITEMS = [
   { to: '/costos', label: 'Costos' },

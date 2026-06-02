@@ -11,6 +11,7 @@ from app.routers import (
     receipts_router, cashflow_router, vencimientos_router, gastos_personales_router,
     caja_diaria_router, costos_router, ventas_jan_router,
     clientes_jan_router, cuenta_corriente_jan_router, productos_jan_router,
+    presupuestos_jan_router,
 )
 
 Base.metadata.create_all(bind=engine)
@@ -134,6 +135,35 @@ def _run_migrations():
                 stock        NUMERIC(10,2) DEFAULT 0,
                 activo       BOOLEAN DEFAULT TRUE,
                 created_at   TIMESTAMP DEFAULT NOW()
+            );
+        """))
+
+        # ── presupuestos_jan ──────────────────────────────────────────
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS presupuestos_jan (
+                id               SERIAL PRIMARY KEY,
+                numero           VARCHAR(20) UNIQUE,
+                cliente_nombre   VARCHAR(200) NOT NULL,
+                cliente_empresa  VARCHAR(200),
+                fecha            DATE NOT NULL,
+                descuento_tipo   VARCHAR(10),
+                descuento_valor  NUMERIC(15,2) DEFAULT 0,
+                subtotal         NUMERIC(15,2) DEFAULT 0,
+                descuento_monto  NUMERIC(15,2) DEFAULT 0,
+                total            NUMERIC(15,2) DEFAULT 0,
+                estado           VARCHAR(20) DEFAULT 'borrador',
+                notas            TEXT,
+                created_at       TIMESTAMP DEFAULT NOW()
+            );
+        """))
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS presupuesto_items_jan (
+                id               SERIAL PRIMARY KEY,
+                presupuesto_id   INTEGER NOT NULL REFERENCES presupuestos_jan(id) ON DELETE CASCADE,
+                descripcion      VARCHAR(500) NOT NULL,
+                cantidad         NUMERIC(10,2) DEFAULT 1,
+                precio_unitario  NUMERIC(15,2) NOT NULL,
+                subtotal         NUMERIC(15,2) DEFAULT 0
             );
         """))
 
@@ -475,6 +505,7 @@ app.include_router(ventas_jan_router)
 app.include_router(clientes_jan_router)
 app.include_router(cuenta_corriente_jan_router)
 app.include_router(productos_jan_router)
+app.include_router(presupuestos_jan_router)
 
 
 @app.get("/")
