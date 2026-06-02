@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { BookOpen, X, Check, ChevronDown, ChevronRight, AlertCircle, Download, Calendar, CreditCard } from 'lucide-react'
+import { X, Check, ChevronDown, ChevronRight, AlertCircle, Download, Calendar, CreditCard, FileText } from 'lucide-react'
 import { api, fmt$ } from '../api'
 
 const SAGE  = '#3D6B64'
@@ -104,6 +104,344 @@ function exportarCSV(resumen: ResumenResponse) {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+}
+
+// ── Exportar PDF por cliente ──────────────────────────────────────────────────
+function exportarPDFCliente(cliente: ClienteResumen) {
+  const fechaExport = new Date().toLocaleDateString('es-AR', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
+
+  const filaDeuda = (d: CCEntry) => {
+    const estadoColor = d.estado === 'cancelado' ? '#16a34a' : d.estado === 'parcial' ? '#d97706' : '#ca8a04'
+    const estadoLabel = d.estado === 'cancelado' ? 'Cancelado' : d.estado === 'parcial' ? 'Parcial' : 'Pendiente'
+    const pagos = parsearPagos(d.notas)
+
+    const historialHTML = pagos.length > 0
+      ? `<div class="historial">
+          ${pagos.map(p => `
+            <div class="pago-item">
+              <span class="pago-dot" style="color:${p.tipo === 'cancelado' ? '#16a34a' : '#d97706'}">
+                ${p.tipo === 'cancelado' ? '✓' : '→'}
+              </span>
+              <span>
+                ${p.tipo === 'parcial' ? `<strong>Pago parcial: $${p.monto?.toLocaleString('es-AR')}</strong>` : ''}
+                ${p.tipo === 'cancelado' ? '<strong>Deuda cancelada</strong>' : ''}
+                ${p.nota ? `<em> — ${p.nota}</em>` : ''}
+                ${p.tipo === 'cancelado' && d.fecha_cancelacion ? ` (${fmtFecha(d.fecha_cancelacion)})` : ''}
+              </span>
+            </div>`).join('')}
+        </div>`
+      : ''
+
+    return `
+      <tr>
+        <td>
+          <div class="venta-id">Venta #${d.venta_id}</div>
+          <div class="fecha-venta">
+            📅 Fecha de venta: ${fmtFecha(d.fecha_venta)}
+            ${d.fecha_cancelacion ? `&nbsp;&nbsp;✓ Pago: ${fmtFecha(d.fecha_cancelacion)}` : ''}
+          </div>
+          ${historialHTML}
+        </td>
+        <td class="money">${fmt$(d.monto_original)}</td>
+        <td class="money" style="color:${d.monto_original !== d.monto_pendiente ? '#16a34a' : '#6b7280'}">
+          ${d.monto_original !== d.monto_pendiente ? fmt$(d.monto_original - d.monto_pendiente) : '—'}
+        </td>
+        <td class="money" style="color:${estadoColor}; font-weight:700">${fmt$(d.monto_pendiente)}</td>
+        <td><span class="badge" style="color:${estadoColor}; border-color:${estadoColor}">${estadoLabel}</span></td>
+      </tr>`
+  }
+
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>CC — ${cliente.nombre}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 11px;
+      color: #1a1a1a;
+      padding: 32px 40px;
+      background: #fff;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 28px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #3D6B64;
+    }
+    .brand-name {
+      font-size: 18px;
+      font-weight: 800;
+      color: #3D6B64;
+      letter-spacing: -0.3px;
+    }
+    .brand-sub {
+      font-size: 10px;
+      color: #6b7280;
+      margin-top: 2px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .header-right {
+      text-align: right;
+      font-size: 10px;
+      color: #6b7280;
+    }
+    .header-right strong {
+      display: block;
+      font-size: 13px;
+      color: #1a1a1a;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    /* ── Bloque cliente ── */
+    .cliente-block {
+      background: #f5efe6;
+      border-left: 4px solid #3D6B64;
+      border-radius: 0 8px 8px 0;
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .cliente-nombre {
+      font-size: 16px;
+      font-weight: 800;
+      color: #1E2B1A;
+    }
+    .cliente-label {
+      font-size: 9px;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 3px;
+    }
+    .total-block {
+      text-align: right;
+    }
+    .total-monto {
+      font-size: 22px;
+      font-weight: 900;
+      color: #C4875A;
+      font-variant-numeric: tabular-nums;
+    }
+    .total-label {
+      font-size: 9px;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 2px;
+    }
+
+    /* ── Resumen KPI ── */
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .kpi {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+    .kpi-label {
+      font-size: 9px;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 4px;
+    }
+    .kpi-value {
+      font-size: 15px;
+      font-weight: 800;
+      color: #3D6B64;
+    }
+
+    /* ── Tabla ── */
+    .section-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    thead tr {
+      background: #1E2B1A;
+    }
+    thead th {
+      color: white;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 8px 10px;
+      text-align: left;
+    }
+    thead th.money { text-align: right; }
+    tbody tr { border-bottom: 1px solid #f0ede8; }
+    tbody tr:nth-child(even) { background: #faf7f4; }
+    tbody td {
+      padding: 10px 10px;
+      vertical-align: top;
+      line-height: 1.5;
+    }
+    .venta-id {
+      font-weight: 700;
+      font-size: 11px;
+      color: #1a1a1a;
+    }
+    .fecha-venta {
+      font-size: 10px;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+    .money { text-align: right; font-variant-numeric: tabular-nums; }
+    .badge {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 99px;
+      border: 1px solid;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .historial {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px dashed #e5e7eb;
+    }
+    .pago-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 5px;
+      font-size: 10px;
+      color: #374151;
+      margin-bottom: 3px;
+    }
+    .pago-dot { flex-shrink: 0; }
+
+    /* ── Footer ── */
+    .footer {
+      margin-top: 28px;
+      padding-top: 12px;
+      border-top: 1px solid #e5e7eb;
+      display: flex;
+      justify-content: space-between;
+      font-size: 9px;
+      color: #9ca3af;
+    }
+
+    @media print {
+      body { padding: 20px 24px; }
+      @page { margin: 10mm 12mm; size: A4; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="brand-name">JAN Orgánico Natural</div>
+      <div class="brand-sub">Sistema ERP · Mar del Plata</div>
+    </div>
+    <div class="header-right">
+      <strong>Estado de Cuenta Corriente</strong>
+      Fecha de emisión: ${fechaExport}
+    </div>
+  </div>
+
+  <!-- Cliente + Total -->
+  <div class="cliente-block">
+    <div>
+      <div class="cliente-label">Cliente</div>
+      <div class="cliente-nombre">${cliente.nombre}</div>
+    </div>
+    <div class="total-block">
+      <div class="cliente-label">Saldo total pendiente</div>
+      <div class="total-monto">${fmt$(cliente.total_pendiente)}</div>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpis">
+    <div class="kpi">
+      <div class="kpi-label">Operaciones abiertas</div>
+      <div class="kpi-value">${cliente.cantidad_deudas}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Monto total vendido (CC)</div>
+      <div class="kpi-value" style="color:#1E2B1A">
+        ${fmt$(cliente.deudas.reduce((s, d) => s + d.monto_original, 0))}
+      </div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Total pagado hasta hoy</div>
+      <div class="kpi-value" style="color:#16a34a">
+        ${fmt$(cliente.deudas.reduce((s, d) => s + (d.monto_original - d.monto_pendiente), 0))}
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabla de transacciones -->
+  <div class="section-title">Detalle de operaciones</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Venta / Detalle</th>
+        <th class="money">Monto original</th>
+        <th class="money">Pagado</th>
+        <th class="money">Pendiente</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${cliente.deudas.map(filaDeuda).join('')}
+      <tr style="background:#f5efe6; font-weight:800">
+        <td><strong>TOTAL</strong></td>
+        <td class="money">${fmt$(cliente.deudas.reduce((s, d) => s + d.monto_original, 0))}</td>
+        <td class="money" style="color:#16a34a">
+          ${fmt$(cliente.deudas.reduce((s, d) => s + (d.monto_original - d.monto_pendiente), 0))}
+        </td>
+        <td class="money" style="color:#C4875A; font-size:13px">${fmt$(cliente.total_pendiente)}</td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Footer -->
+  <div class="footer">
+    <span>JAN Orgánico Natural · Estado de cuenta generado automáticamente</span>
+    <span>${fechaExport}</span>
+  </div>
+
+</body>
+</html>`
+
+  const win = window.open('', '_blank', 'width=900,height=700')
+  if (!win) { alert('Habilitá las ventanas emergentes para generar el PDF.'); return }
+  win.document.write(html)
+  win.document.close()
+  win.focus()
+  setTimeout(() => { win.print() }, 400)
 }
 
 // ── Modal de pago ─────────────────────────────────────────────────────────────
@@ -500,37 +838,48 @@ export default function CuentaCorriente() {
                   <div key={cliente.cliente_id} className="card p-0 overflow-hidden">
 
                     {/* ── Fila cliente (header expandible) ── */}
-                    <button
-                      className="w-full flex items-center gap-4 px-5 py-4 hover:bg-cream/30 transition-colors text-left"
-                      onClick={() => toggleExpand(cliente.cliente_id)}>
+                    <div className="flex items-center">
+                      <button
+                        className="flex-1 flex items-center gap-4 px-5 py-4 hover:bg-cream/30 transition-colors text-left"
+                        onClick={() => toggleExpand(cliente.cliente_id)}>
 
-                      <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-                        style={{ background: SAGE }}>
-                        {cliente.nombre.charAt(0).toUpperCase()}
-                      </div>
+                        <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+                          style={{ background: SAGE }}>
+                          {cliente.nombre.charAt(0).toUpperCase()}
+                        </div>
 
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-brand-body text-sm leading-tight truncate">
-                          {cliente.nombre}
-                        </p>
-                        <p className="text-[11px] text-brand-muted mt-0.5">
-                          {cliente.cantidad_deudas} {cliente.cantidad_deudas === 1 ? 'deuda' : 'deudas'} abiertas
-                        </p>
-                      </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-brand-body text-sm leading-tight truncate">
+                            {cliente.nombre}
+                          </p>
+                          <p className="text-[11px] text-brand-muted mt-0.5">
+                            {cliente.cantidad_deudas} {cliente.cantidad_deudas === 1 ? 'deuda' : 'deudas'} abiertas
+                          </p>
+                        </div>
 
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-base font-bold tabular-nums" style={{ color: AMBER }}>
-                          {fmt$(cliente.total_pendiente)}
-                        </p>
-                        <p className="text-[10px] text-brand-muted">pendiente</p>
-                      </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-base font-bold tabular-nums" style={{ color: AMBER }}>
+                            {fmt$(cliente.total_pendiente)}
+                          </p>
+                          <p className="text-[10px] text-brand-muted">pendiente</p>
+                        </div>
 
-                      <div className="ml-2 flex-shrink-0">
-                        {isOpen
-                          ? <ChevronDown size={16} className="text-brand-muted" />
-                          : <ChevronRight size={16} className="text-brand-muted" />}
-                      </div>
-                    </button>
+                        <div className="ml-2 flex-shrink-0">
+                          {isOpen
+                            ? <ChevronDown size={16} className="text-brand-muted" />
+                            : <ChevronRight size={16} className="text-brand-muted" />}
+                        </div>
+                      </button>
+
+                      {/* Botón PDF por cliente */}
+                      <button
+                        onClick={e => { e.stopPropagation(); exportarPDFCliente(cliente) }}
+                        title="Exportar PDF de este cliente"
+                        className="flex-shrink-0 mx-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-brand-border text-brand-muted hover:text-brand-body hover:border-sage/40 transition-all text-[11px] font-semibold">
+                        <FileText size={13} />
+                        PDF
+                      </button>
+                    </div>
 
                     {/* ── Detalle de deudas ── */}
                     {isOpen && (
