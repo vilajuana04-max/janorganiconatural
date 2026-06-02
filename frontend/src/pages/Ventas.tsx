@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { Plus, Pencil, Trash2, X, Check, ShoppingBag, TrendingUp, UserCheck, User } from 'lucide-react'
 import { api, fmt$, MONTHS, CURRENT_YEAR, CURRENT_MONTH_IDX } from '../api'
 
@@ -32,6 +32,7 @@ const METODO_ICONS: Record<string, string> = {
 }
 
 type ClienteOption = { id: number; nombre_completo: string }
+type ProductoOption = { id: number; nombre: string; categoria: string; precio: number }
 
 type Venta = {
   id: number
@@ -87,6 +88,10 @@ function VentaModal({
   const [error, setError]     = useState('')
   const [clientes, setClientes] = useState<ClienteOption[]>([])
   const [busqueda, setBusqueda] = useState('')
+  // Producto autocomplete
+  const [prodSuggestions, setProdSuggestions] = useState<ProductoOption[]>([])
+  const [showProdDrop, setShowProdDrop]       = useState(false)
+  const prodTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Cargar lista de clientes cuando se selecciona cliente_registrado
   useEffect(() => {
@@ -96,6 +101,33 @@ function VentaModal({
         .catch(() => {})
     }
   }, [form.cliente_tipo])
+
+  // Buscar productos mientras escribe
+  function handleProductoChange(val: string) {
+    set('producto', val)
+    if (prodTimer.current) clearTimeout(prodTimer.current)
+    if (val.trim().length < 2) { setProdSuggestions([]); setShowProdDrop(false); return }
+    prodTimer.current = setTimeout(() => {
+      api.get<ProductoOption[]>(`/productos-jan/?q=${encodeURIComponent(val)}`)
+        .then(res => {
+          const arr = Array.isArray(res) ? res : []
+          setProdSuggestions(arr)
+          setShowProdDrop(arr.length > 0)
+        })
+        .catch(() => { setProdSuggestions([]); setShowProdDrop(false) })
+    }, 280)
+  }
+
+  function selectProducto(p: ProductoOption) {
+    setForm(f => ({
+      ...f,
+      producto:        p.nombre,
+      categoria:       p.categoria,
+      precio_unitario: String(p.precio),
+    }))
+    setProdSuggestions([])
+    setShowProdDrop(false)
+  }
 
   const set = (k: string, v: unknown) => setForm(f => ({ ...f, [k]: v }))
   const total = (parseFloat(form.cantidad) || 0) * (parseFloat(form.precio_unitario) || 0)
@@ -173,9 +205,32 @@ function VentaModal({
           {/* Producto */}
           <div>
             <label className="block text-[11px] font-bold tracking-[1.5px] uppercase text-brand-muted mb-1.5">Producto</label>
-            <input type="text" value={form.producto} onChange={e => set('producto', e.target.value)}
-              placeholder="Ej: Vela lavanda 200g"
-              className="input w-full text-sm" required />
+            <div className="relative">
+              <input
+                type="text"
+                value={form.producto}
+                onChange={e => handleProductoChange(e.target.value)}
+                onBlur={() => setTimeout(() => setShowProdDrop(false), 180)}
+                onFocus={() => prodSuggestions.length > 0 && setShowProdDrop(true)}
+                placeholder="Ej: Vela lavanda 200g"
+                className="input w-full text-sm"
+                required
+              />
+              {showProdDrop && (
+                <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-brand-border overflow-hidden max-h-44 overflow-y-auto">
+                  {prodSuggestions.map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onMouseDown={() => selectProducto(p)}
+                      className="w-full text-left px-4 py-2.5 hover:bg-cream transition-colors flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-brand-body truncate">{p.nombre}</span>
+                      <span className="text-xs font-bold flex-shrink-0" style={{ color: '#3D6B64' }}>{fmt$(p.precio)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Cantidad + Precio unitario */}

@@ -7,6 +7,7 @@ class ClienteJAN(Base):
     __tablename__ = "clientes_jan"
 
     id               = Column(Integer, primary_key=True, index=True)
+    numero_cliente   = Column(String(20), nullable=True, unique=True)  # CLI-0001
     nombre_completo  = Column(String(200), nullable=False)
     direccion        = Column(Text, nullable=True)
     email            = Column(String(200), nullable=True)

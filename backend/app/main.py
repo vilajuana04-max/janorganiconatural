@@ -10,7 +10,7 @@ from app.routers import (
     vacations_router, expenses_router, dashboard_router, employees_router,
     receipts_router, cashflow_router, vencimientos_router, gastos_personales_router,
     caja_diaria_router, costos_router, ventas_jan_router,
-    clientes_jan_router, cuenta_corriente_jan_router,
+    clientes_jan_router, cuenta_corriente_jan_router, productos_jan_router,
 )
 
 Base.metadata.create_all(bind=engine)
@@ -91,6 +91,52 @@ def _run_migrations():
                 created_at        TIMESTAMP DEFAULT NOW()
             );
         """))
+
+        # ── Crear CC entries para ventas pendientes sin CC (fix retroactivo) ──
+        db.execute(text("""
+            INSERT INTO cuenta_corriente_jan
+                (cliente_id, venta_id, monto_original, monto_pendiente, estado, fecha_venta, created_at)
+            SELECT v.cliente_id, v.id, v.total, v.total, 'pendiente', v.fecha, NOW()
+            FROM ventas_jan v
+            WHERE v.estado_pago = 'pendiente'
+              AND v.cliente_id IS NOT NULL
+              AND NOT EXISTS (
+                  SELECT 1 FROM cuenta_corriente_jan cc WHERE cc.venta_id = v.id
+              );
+        """))
+
+        # ── clientes_jan: numero_cliente ──────────────────────────────
+        db.execute(text(
+            "ALTER TABLE clientes_jan ADD COLUMN IF NOT EXISTS numero_cliente VARCHAR(20) UNIQUE;"
+        ))
+        # Backfill numero_cliente for existing clients that don't have one
+        db.execute(text("""
+            UPDATE clientes_jan
+            SET numero_cliente = 'CLI-' || LPAD(id::text, 4, '0')
+            WHERE numero_cliente IS NULL;
+        """))
+
+        # ── productos_jan ─────────────────────────────────────────────
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS productos_jan (
+                id           SERIAL PRIMARY KEY,
+                nombre       VARCHAR(200) NOT NULL,
+                descripcion  TEXT,
+                codigo       VARCHAR(50),
+                foto_url     VARCHAR(500),
+                costo        NUMERIC(15,2),
+                precio       NUMERIC(15,2) NOT NULL,
+                medidas      VARCHAR(100),
+                peso_gr      NUMERIC(10,1),
+                categoria    VARCHAR(50) NOT NULL,
+                subcategoria VARCHAR(50),
+                variables    TEXT DEFAULT '[]',
+                stock        NUMERIC(10,2) DEFAULT 0,
+                activo       BOOLEAN DEFAULT TRUE,
+                created_at   TIMESTAMP DEFAULT NOW()
+            );
+        """))
+
         db.commit()
     except Exception as e:
         print(f"[migration] Error: {e}")
@@ -428,6 +474,7 @@ app.include_router(costos_router)
 app.include_router(ventas_jan_router)
 app.include_router(clientes_jan_router)
 app.include_router(cuenta_corriente_jan_router)
+app.include_router(productos_jan_router)
 
 
 @app.get("/")

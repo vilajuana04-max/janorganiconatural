@@ -31,6 +31,7 @@ const IVA_LABELS: Record<string, string> = {
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Cliente = {
   id: number
+  numero_cliente?: string
   nombre_completo: string
   direccion?: string
   email?: string
@@ -422,6 +423,7 @@ function ClientePanel({ cliente, onEdit, onClose, onRefresh, defaultTab }: {
               </p>
               <h2 className="text-white font-bold text-lg font-head leading-tight">{cliente.nombre_completo}</h2>
               <p className="text-white/60 text-xs mt-0.5">
+                {cliente.numero_cliente && <span className="font-mono font-bold text-white/80 mr-1.5">{cliente.numero_cliente}</span>}
                 {cliente.documento_tipo}: {formatDoc(cliente.documento_tipo, cliente.documento_numero)}
                 {cliente.telefono && ` · ${cliente.telefono}`}
               </p>
@@ -693,7 +695,10 @@ export default function Clientes() {
                     className={`border-b border-brand-border/40 cursor-pointer transition-colors hover:bg-cream/50 ${i % 2 !== 0 ? 'bg-cream/20' : ''}`}>
                     <td className="px-4 py-3">
                       <p className="text-sm font-semibold text-brand-body">{c.nombre_completo}</p>
-                      <p className="text-xs text-brand-muted">{c.tipo_cliente === 'cliente_mayorista' ? 'Mayorista' : 'Final'}</p>
+                      <p className="text-xs text-brand-muted">
+                        {c.numero_cliente && <span className="font-mono mr-1.5" style={{ color: SAGE }}>{c.numero_cliente}</span>}
+                        {c.tipo_cliente === 'cliente_mayorista' ? 'Mayorista' : 'Final'}
+                      </p>
                     </td>
                     <td className="px-3 py-3 text-center hidden sm:table-cell">
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"

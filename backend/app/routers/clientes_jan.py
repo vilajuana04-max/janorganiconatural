@@ -86,6 +86,7 @@ class PagoCC(BaseModel):
 def _serialize_cliente(c: ClienteJAN, saldo: float = 0.0) -> dict:
     return {
         "id":               c.id,
+        "numero_cliente":   c.numero_cliente or "",
         "nombre_completo":  c.nombre_completo,
         "direccion":        c.direccion,
         "email":            c.email,
@@ -163,6 +164,8 @@ def create_cliente(body: ClienteIn, db: Session = Depends(get_db)):
         notas             = body.notas,
     )
     db.add(c)
+    db.flush()  # get id before commit
+    c.numero_cliente = f"CLI-{c.id:04d}"
     db.commit()
     db.refresh(c)
     return _serialize_cliente(c)
