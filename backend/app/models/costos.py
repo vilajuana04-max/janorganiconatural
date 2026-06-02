@@ -6,11 +6,13 @@ class InsumoJAN(Base):
     """Materias primas con precio actual por kg / litro / unidad."""
     __tablename__ = "insumos_jan"
 
-    id      = Column(Integer, primary_key=True)
-    nombre  = Column(String(150), unique=True, nullable=False)
-    unidad  = Column(String(20), nullable=False)   # 'kg' | 'litro' | 'unidad'
-    precio  = Column(Numeric(15, 2), default=0)    # precio actual por unidad
-    activo  = Column(Boolean, default=True)
+    id               = Column(Integer, primary_key=True)
+    nombre           = Column(String(150), unique=True, nullable=False)
+    unidad           = Column(String(20), nullable=False)   # 'kg' | 'litro' | 'unidad'
+    precio           = Column(Numeric(15, 2), default=0)    # precio actual por unidad
+    activo           = Column(Boolean, default=True)
+    stock_disponible = Column(Numeric(10, 2), default=0)    # stock actual
+    stock_minimo     = Column(Numeric(10, 2), default=0)    # alerta si baja de este valor
 
 
 class RecetaJAN(Base):

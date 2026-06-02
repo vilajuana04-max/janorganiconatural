@@ -205,6 +205,17 @@ def _run_migrations():
         db.execute(text(
             "ALTER TABLE ventas_jan ADD COLUMN IF NOT EXISTS variante_jan VARCHAR(100);"
         ))
+        # ── insumos_jan: stock ────────────────────────────────────────
+        db.execute(text(
+            "ALTER TABLE insumos_jan ADD COLUMN IF NOT EXISTS stock_disponible NUMERIC(10,2) DEFAULT 0;"
+        ))
+        db.execute(text(
+            "ALTER TABLE insumos_jan ADD COLUMN IF NOT EXISTS stock_minimo NUMERIC(10,2) DEFAULT 0;"
+        ))
+        # ── movimientos_stock_jan: soporte insumos ────────────────────
+        db.execute(text(
+            "ALTER TABLE movimientos_stock_jan ADD COLUMN IF NOT EXISTS insumo_id INTEGER;"
+        ))
 
         db.commit()
     except Exception as e:
