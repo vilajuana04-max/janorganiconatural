@@ -367,13 +367,14 @@ function PagoModal({ registro, onPago, onClose }: {
 }
 
 // ── Panel lateral de detalle de cliente ───────────────────────────────────────
-function ClientePanel({ cliente, onEdit, onClose, onRefresh }: {
+function ClientePanel({ cliente, onEdit, onClose, onRefresh, defaultTab }: {
   cliente: Cliente
   onEdit: () => void
   onClose: () => void
   onRefresh: () => void
+  defaultTab?: 'datos' | 'historial' | 'cc'
 }) {
-  const [tab, setTab] = useState<'datos' | 'historial' | 'cc'>('datos')
+  const [tab, setTab] = useState<'datos' | 'historial' | 'cc'>(defaultTab ?? (cliente.saldo_pendiente > 0 ? 'cc' : 'datos'))
   const [historial, setHistorial] = useState<Compra[]>([])
   const [cc, setCC] = useState<{ saldo_pendiente: number; registros: CCRegistro[] } | null>(null)
   const [pagoModal, setPagoModal] = useState<CCRegistro | null>(null)
@@ -580,7 +581,7 @@ export default function Clientes() {
   const [loading, setLoading]   = useState(true)
   const [search, setSearch]     = useState('')
   const [modal, setModal]       = useState<{ open: boolean; cliente?: Cliente }>({ open: false })
-  const [detalle, setDetalle]   = useState<Cliente | null>(null)
+  const [detalle, setDetalle]   = useState<{ cliente: Cliente; tab?: 'datos' | 'historial' | 'cc' } | null>(null)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -606,9 +607,9 @@ export default function Clientes() {
       await api.post('/clientes-jan/', data)
     }
     load()
-    if (detalle && modal.cliente?.id === detalle.id) {
-      const updated = await api.get<Cliente>(`/clientes-jan/${detalle.id}`)
-      setDetalle(updated)
+    if (detalle && modal.cliente?.id === detalle.cliente.id) {
+      const updated = await api.get<Cliente>(`/clientes-jan/${detalle.cliente.id}`)
+      setDetalle({ cliente: updated, tab: detalle.tab })
     }
   }
 
@@ -616,7 +617,7 @@ export default function Clientes() {
     if (!confirm('¿Desactivar este cliente?')) return
     await api.delete(`/clientes-jan/${id}`)
     load()
-    if (detalle?.id === id) setDetalle(null)
+    if (detalle?.cliente.id === id) setDetalle(null)
   }
 
   return (
@@ -688,7 +689,7 @@ export default function Clientes() {
               <tbody>
                 {filtered.map((c, i) => (
                   <tr key={c.id}
-                    onClick={() => setDetalle(c)}
+                    onClick={() => setDetalle({ cliente: c })}
                     className={`border-b border-brand-border/40 cursor-pointer transition-colors hover:bg-cream/50 ${i % 2 !== 0 ? 'bg-cream/20' : ''}`}>
                     <td className="px-4 py-3">
                       <p className="text-sm font-semibold text-brand-body">{c.nombre_completo}</p>
@@ -710,13 +711,23 @@ export default function Clientes() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {c.saldo_pendiente > 0
-                        ? <span className="text-sm font-bold" style={{ color: AMBER }}>{fmt$(c.saldo_pendiente)}</span>
-                        : <span className="text-xs text-green-600 font-semibold">✓ Sin deuda</span>}
+                      {c.saldo_pendiente > 0 ? (
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="text-sm font-bold" style={{ color: AMBER }}>{fmt$(c.saldo_pendiente)}</span>
+                          <button
+                            onClick={e => { e.stopPropagation(); setDetalle({ cliente: c, tab: 'cc' }) }}
+                            className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white transition-opacity hover:opacity-80"
+                            style={{ background: AMBER }}>
+                            Registrar pago
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-green-600 font-semibold">✓ Sin deuda</span>
+                      )}
                     </td>
                     <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => { setModal({ open: true, cliente: c }) }}
+                        <button onClick={() => setModal({ open: true, cliente: c })}
                           className="p-1.5 rounded-lg text-brand-muted hover:text-sage hover:bg-sage/10 transition-colors">
                           <Pencil size={13} />
                         </button>
@@ -747,8 +758,9 @@ export default function Clientes() {
       {/* Panel de detalle */}
       {detalle && (
         <ClientePanel
-          cliente={detalle}
-          onEdit={() => setModal({ open: true, cliente: detalle })}
+          cliente={detalle.cliente}
+          defaultTab={detalle.tab}
+          onEdit={() => setModal({ open: true, cliente: detalle.cliente })}
           onClose={() => setDetalle(null)}
           onRefresh={load}
         />
