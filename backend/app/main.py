@@ -12,6 +12,7 @@ from app.routers import (
     caja_diaria_router, costos_router, ventas_jan_router,
     clientes_jan_router, cuenta_corriente_jan_router, productos_jan_router,
     presupuestos_jan_router,
+    stock_jan_router,
 )
 
 Base.metadata.create_all(bind=engine)
@@ -166,6 +167,44 @@ def _run_migrations():
                 subtotal         NUMERIC(15,2) DEFAULT 0
             );
         """))
+
+        # ── stock_variantes_jan ───────────────────────────────────────
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS stock_variantes_jan (
+                id           SERIAL PRIMARY KEY,
+                producto_id  INTEGER NOT NULL REFERENCES productos_jan(id),
+                variante     VARCHAR(100) NOT NULL DEFAULT '',
+                tipo         VARCHAR(20)  NOT NULL DEFAULT 'listo',
+                cantidad     NUMERIC(10,2) DEFAULT 0,
+                stock_minimo NUMERIC(10,2) DEFAULT 0,
+                created_at   TIMESTAMP DEFAULT NOW(),
+                UNIQUE(producto_id, variante, tipo)
+            );
+        """))
+        # ── movimientos_stock_jan ─────────────────────────────────────
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS movimientos_stock_jan (
+                id              SERIAL PRIMARY KEY,
+                producto_id     INTEGER NOT NULL,
+                variante        VARCHAR(100) NOT NULL DEFAULT '',
+                tipo_movimiento VARCHAR(20)  NOT NULL,
+                tipo_stock      VARCHAR(20),
+                desde_tipo      VARCHAR(20),
+                hacia_tipo      VARCHAR(20),
+                cantidad        NUMERIC(10,2) NOT NULL,
+                referencia_id   INTEGER,
+                notas           TEXT,
+                fecha           DATE NOT NULL,
+                created_at      TIMESTAMP DEFAULT NOW()
+            );
+        """))
+        # ── ventas_jan: columnas para vincular con catálogo ───────────
+        db.execute(text(
+            "ALTER TABLE ventas_jan ADD COLUMN IF NOT EXISTS producto_jan_id INTEGER;"
+        ))
+        db.execute(text(
+            "ALTER TABLE ventas_jan ADD COLUMN IF NOT EXISTS variante_jan VARCHAR(100);"
+        ))
 
         db.commit()
     except Exception as e:
@@ -506,6 +545,7 @@ app.include_router(clientes_jan_router)
 app.include_router(cuenta_corriente_jan_router)
 app.include_router(productos_jan_router)
 app.include_router(presupuestos_jan_router)
+app.include_router(stock_jan_router)
 
 
 @app.get("/")

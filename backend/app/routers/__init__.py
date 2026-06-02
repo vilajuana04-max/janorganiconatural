@@ -17,3 +17,4 @@ from .clientes_jan import router as clientes_jan_router
 from .cuenta_corriente_jan import router as cuenta_corriente_jan_router
 from .productos_jan import router as productos_jan_router
 from .presupuestos_jan import router as presupuestos_jan_router
+from .stock_jan import router as stock_jan_router

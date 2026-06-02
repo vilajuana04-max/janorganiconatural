@@ -17,6 +17,7 @@ from .clientes_jan import ClienteJAN
 from .cuenta_corriente_jan import CuentaCorrienteJAN
 from .productos_jan import ProductoJAN
 from .presupuestos_jan import PresupuestoJAN, PresupuestoItemJAN
+from .stock_jan import StockVarianteJAN, MovimientoStockJAN
 
 __all__ = [
     "User",

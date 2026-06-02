@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from app.database import get_db
 from app.models.ventas_jan import VentaJAN
 from app.models.cuenta_corriente_jan import CuentaCorrienteJAN
+from app.routers.stock_jan import decrementar_stock_venta
 
 router = APIRouter(prefix="/ventas-jan", tags=["Ventas JAN"])
 
@@ -33,6 +34,8 @@ class VentaIn(BaseModel):
     notas:           Optional[str] = ''
     cliente_tipo:    Optional[str] = 'cliente_final'   # cliente_final | cliente_registrado
     cliente_id:      Optional[int] = None
+    producto_jan_id: Optional[int] = None   # id del ProductoJAN si viene del catálogo
+    variante_jan:    Optional[str] = None   # variante seleccionada (ej: "Chai tea")
 
 
 class VentaUpdate(BaseModel):
@@ -166,7 +169,7 @@ def create_venta(body: VentaIn, db: Session = Depends(get_db)):
             notas           = body.notas or '',
         )
         db.add(v)
-        db.flush()
+        db.flush()  # obtener v.id
 
         if es_cc:
             cc = CuentaCorrienteJAN(
@@ -178,6 +181,17 @@ def create_venta(body: VentaIn, db: Session = Depends(get_db)):
                 fecha_venta     = body.fecha,
             )
             db.add(cc)
+
+        # ── Decremento de stock si viene del catálogo ────────────
+        if body.producto_jan_id:
+            decrementar_stock_venta(
+                db          = db,
+                producto_id = body.producto_jan_id,
+                variante    = body.variante_jan or '',
+                cantidad    = body.cantidad,
+                venta_id    = v.id,
+                fecha       = body.fecha,
+            )
 
         db.commit()
         db.refresh(v)

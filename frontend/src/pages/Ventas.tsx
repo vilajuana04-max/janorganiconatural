@@ -32,15 +32,24 @@ const METODO_ICONS: Record<string, string> = {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ClienteOption  = { id: number; nombre_completo: string }
-type ProductoOption = { id: number; nombre: string; categoria: string; precio: number }
+type ProductoOption = {
+  id:        number
+  nombre:    string
+  categoria: string
+  precio:    number
+  variables: string   // JSON: [{"nombre":"Aroma","opciones":["Chai tea","..."]}]
+}
 
 type LineItem = {
-  localId:         string
-  tipo:            'catalogo' | 'custom'
-  nombre:          string
-  categoria:       string
-  cantidad:        string
-  precio_unitario: string
+  localId:          string
+  tipo:             'catalogo' | 'custom'
+  nombre:           string
+  categoria:        string
+  cantidad:         string
+  precio_unitario:  string
+  producto_jan_id?: number | null
+  variante_jan?:    string
+  variante_opciones?: string[]   // opciones disponibles para la variante del producto
 }
 
 type GlobalForm = {
@@ -85,10 +94,10 @@ let _localIdCounter = 0
 function newLocalId() { return `li_${Date.now()}_${_localIdCounter++}` }
 
 function newCatalogItem(): LineItem {
-  return { localId: newLocalId(), tipo: 'catalogo', nombre: '', categoria: CATEGORIAS[0], cantidad: '1', precio_unitario: '' }
+  return { localId: newLocalId(), tipo: 'catalogo', nombre: '', categoria: CATEGORIAS[0], cantidad: '1', precio_unitario: '', producto_jan_id: null, variante_jan: '', variante_opciones: [] }
 }
 function newCustomItem(): LineItem {
-  return { localId: newLocalId(), tipo: 'custom',   nombre: '', categoria: CATEGORIAS[0], cantidad: '1', precio_unitario: '' }
+  return { localId: newLocalId(), tipo: 'custom',   nombre: '', categoria: CATEGORIAS[0], cantidad: '1', precio_unitario: '', producto_jan_id: null, variante_jan: '', variante_opciones: [] }
 }
 
 // ── Fila de ítem (con buscador propio) ────────────────────────────────────────
@@ -133,13 +142,29 @@ function LineItemRow({
     setConfirmed(true)
     setShowDrop(false)
     setSugg([])
-    onUpdate({ ...item, nombre: p.nombre, categoria: p.categoria, precio_unitario: String(p.precio) })
+    // Parsear variantes del producto
+    let opciones: string[] = []
+    try {
+      const vars = JSON.parse(p.variables || '[]')
+      if (Array.isArray(vars) && vars.length > 0 && vars[0].opciones?.length > 0) {
+        opciones = vars[0].opciones.filter((o: string) => o.trim() !== '')
+      }
+    } catch { /* ignore */ }
+    onUpdate({
+      ...item,
+      nombre:           p.nombre,
+      categoria:        p.categoria,
+      precio_unitario:  String(p.precio),
+      producto_jan_id:  p.id,
+      variante_jan:     opciones.length > 0 ? opciones[0] : '',
+      variante_opciones: opciones,
+    })
   }
 
   function clearConfirmed() {
     setBusqueda('')
     setConfirmed(false)
-    onUpdate({ ...item, nombre: '', categoria: CATEGORIAS[0], precio_unitario: '' })
+    onUpdate({ ...item, nombre: '', categoria: CATEGORIAS[0], precio_unitario: '', producto_jan_id: null, variante_jan: '', variante_opciones: [] })
   }
 
   return (
@@ -167,21 +192,40 @@ function LineItemRow({
           <div className="relative">
             {confirmed ? (
               /* Producto confirmado */
-              <div className="flex items-center justify-between rounded-xl px-3 py-2 border-2"
-                style={{ borderColor: SAGE, background: `${SAGE}0D` }}>
-                <div className="flex items-center gap-2 min-w-0">
-                  <Package size={13} style={{ color: SAGE }} className="flex-shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold leading-tight truncate" style={{ color: SAGE }}>
-                      {item.nombre}
-                    </p>
-                    <p className="text-[10px] text-brand-muted">{item.categoria}</p>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between rounded-xl px-3 py-2 border-2"
+                  style={{ borderColor: SAGE, background: `${SAGE}0D` }}>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Package size={13} style={{ color: SAGE }} className="flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold leading-tight truncate" style={{ color: SAGE }}>
+                        {item.nombre}
+                      </p>
+                      <p className="text-[10px] text-brand-muted">{item.categoria}</p>
+                    </div>
                   </div>
+                  <button type="button" onClick={clearConfirmed}
+                    className="text-brand-muted hover:text-brand-body ml-2 flex-shrink-0">
+                    <X size={13} />
+                  </button>
                 </div>
-                <button type="button" onClick={clearConfirmed}
-                  className="text-brand-muted hover:text-brand-body ml-2 flex-shrink-0">
-                  <X size={13} />
-                </button>
+                {/* Selector de variante si el producto tiene opciones */}
+                {item.variante_opciones && item.variante_opciones.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-[10px] font-bold uppercase tracking-wide shrink-0" style={{ color: SAGE }}>
+                      Variante
+                    </label>
+                    <select
+                      value={item.variante_jan || ''}
+                      onChange={e => onUpdate({ ...item, variante_jan: e.target.value })}
+                      className="input flex-1 text-xs py-1.5"
+                    >
+                      {item.variante_opciones.map(op => (
+                        <option key={op} value={op}>{op}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
             ) : (
               /* Búsqueda */
@@ -688,16 +732,18 @@ export default function Ventas() {
       // Creación: una venta por ítem, en secuencia
       for (const it of items) {
         await api.post('/ventas-jan/', {
-          fecha:           global.fecha,
-          producto:        it.nombre,
-          categoria:       it.categoria,
-          cantidad:        parseFloat(it.cantidad),
-          precio_unitario: parseFloat(it.precio_unitario),
-          canal:           global.canal,
-          metodo_pago:     global.metodo_pago,
-          cliente_tipo:    global.cliente_tipo,
-          cliente_id:      global.cliente_id,
-          notas:           global.notas,
+          fecha:            global.fecha,
+          producto:         it.nombre,
+          categoria:        it.categoria,
+          cantidad:         parseFloat(it.cantidad),
+          precio_unitario:  parseFloat(it.precio_unitario),
+          canal:            global.canal,
+          metodo_pago:      global.metodo_pago,
+          cliente_tipo:     global.cliente_tipo,
+          cliente_id:       global.cliente_id,
+          notas:            global.notas,
+          producto_jan_id:  it.producto_jan_id ?? null,
+          variante_jan:     it.variante_jan    ?? null,
         })
       }
     }
