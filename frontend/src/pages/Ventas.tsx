@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Plus, Pencil, Trash2, X, Check, ShoppingBag, TrendingUp, UserCheck, User } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Check, ShoppingBag, TrendingUp, UserCheck, User, Package, Type } from 'lucide-react'
 import { api, fmt$, MONTHS, CURRENT_YEAR, CURRENT_MONTH_IDX } from '../api'
 
 const SAGE  = '#3D6B64'
@@ -20,19 +20,37 @@ const CAT_COLORS: Record<string, string> = {
 }
 
 const METODO_ICONS: Record<string, string> = {
-  'Efectivo':       '💵',
-  'Transferencia':  '🏦',
-  'Link de Pago':   '🔗',
-  'Tarjeta':        '💳',
+  'Efectivo':         '💵',
+  'Transferencia':    '🏦',
+  'Link de Pago':     '🔗',
+  'Tarjeta':          '💳',
   'Cuenta Corriente': '📒',
-  // legacy
-  'Cta. DNI':       '🏦',
-  'Mercado Pago':   '💙',
-  'Naranja':        '🟠',
+  'Cta. DNI':         '🏦',
+  'Mercado Pago':     '💙',
+  'Naranja':          '🟠',
 }
 
-type ClienteOption = { id: number; nombre_completo: string }
+// ── Types ─────────────────────────────────────────────────────────────────────
+type ClienteOption  = { id: number; nombre_completo: string }
 type ProductoOption = { id: number; nombre: string; categoria: string; precio: number }
+
+type LineItem = {
+  localId:         string
+  tipo:            'catalogo' | 'custom'
+  nombre:          string
+  categoria:       string
+  cantidad:        string
+  precio_unitario: string
+}
+
+type GlobalForm = {
+  fecha:        string
+  canal:        string
+  metodo_pago:  string
+  cliente_tipo: 'cliente_final' | 'cliente_registrado'
+  cliente_id:   number | null
+  notas:        string
+}
 
 type Venta = {
   id: number
@@ -54,110 +72,304 @@ type Venta = {
 }
 
 type Summary = {
-  ventas: Venta[]
-  total_mes: number
-  cantidad_ops: number
-  por_medio: Record<string, number>
-  por_canal: Record<string, number>
+  ventas:        Venta[]
+  total_mes:     number
+  cantidad_ops:  number
+  por_medio:     Record<string, number>
+  por_canal:     Record<string, number>
   por_categoria: Record<string, number>
 }
 
-const EMPTY_FORM = {
-  fecha:           new Date().toISOString().slice(0, 10),
-  producto:        '',
-  categoria:       CATEGORIAS[0],
-  cantidad:        '1',
-  precio_unitario: '',
-  canal:           CANALES[0],
-  metodo_pago:     METODOS_PAGO[0],
-  cliente_tipo:    'cliente_final' as 'cliente_final' | 'cliente_registrado',
-  cliente_id:      null as number | null,
-  notas:           '',
+// ── Helpers ───────────────────────────────────────────────────────────────────
+let _localIdCounter = 0
+function newLocalId() { return `li_${Date.now()}_${_localIdCounter++}` }
+
+function newCatalogItem(): LineItem {
+  return { localId: newLocalId(), tipo: 'catalogo', nombre: '', categoria: CATEGORIAS[0], cantidad: '1', precio_unitario: '' }
+}
+function newCustomItem(): LineItem {
+  return { localId: newLocalId(), tipo: 'custom',   nombre: '', categoria: CATEGORIAS[0], cantidad: '1', precio_unitario: '' }
+}
+
+// ── Fila de ítem (con buscador propio) ────────────────────────────────────────
+function LineItemRow({
+  item,
+  onUpdate,
+  onRemove,
+  isOnly,
+}: {
+  item:     LineItem
+  onUpdate: (item: LineItem) => void
+  onRemove: () => void
+  isOnly:   boolean
+}) {
+  const [busqueda, setBusqueda]   = useState(item.nombre)
+  const [suggestions, setSugg]    = useState<ProductoOption[]>([])
+  const [showDrop, setShowDrop]   = useState(false)
+  const [confirmed, setConfirmed] = useState(item.nombre !== '')
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const subtotal = (parseFloat(item.cantidad) || 0) * (parseFloat(item.precio_unitario) || 0)
+
+  function search(val: string) {
+    setBusqueda(val)
+    setConfirmed(false)
+    onUpdate({ ...item, nombre: val })
+    if (timer.current) clearTimeout(timer.current)
+    if (val.trim().length < 2) { setSugg([]); setShowDrop(false); return }
+    timer.current = setTimeout(() => {
+      api.get<ProductoOption[]>(`/productos-jan/?q=${encodeURIComponent(val)}`)
+        .then(res => {
+          const arr = Array.isArray(res) ? res : []
+          setSugg(arr)
+          setShowDrop(arr.length > 0)
+        })
+        .catch(() => { setSugg([]); setShowDrop(false) })
+    }, 280)
+  }
+
+  function pick(p: ProductoOption) {
+    setBusqueda(p.nombre)
+    setConfirmed(true)
+    setShowDrop(false)
+    setSugg([])
+    onUpdate({ ...item, nombre: p.nombre, categoria: p.categoria, precio_unitario: String(p.precio) })
+  }
+
+  function clearConfirmed() {
+    setBusqueda('')
+    setConfirmed(false)
+    onUpdate({ ...item, nombre: '', categoria: CATEGORIAS[0], precio_unitario: '' })
+  }
+
+  return (
+    <div className="rounded-xl border border-brand-border bg-white overflow-visible">
+      {/* Top bar: tipo badge + remove */}
+      <div className="flex items-center justify-between px-3 pt-2.5 pb-1">
+        <span className="text-[10px] font-bold uppercase tracking-[1.5px] flex items-center gap-1"
+          style={{ color: item.tipo === 'catalogo' ? SAGE : AMBER }}>
+          {item.tipo === 'catalogo'
+            ? <><Package size={10} /> Del catálogo</>
+            : <><Type size={10} /> Ítem personalizado</>}
+        </span>
+        {!isOnly && (
+          <button type="button" onClick={onRemove}
+            className="text-brand-muted hover:text-red-500 transition-colors p-0.5 rounded">
+            <X size={14} />
+          </button>
+        )}
+      </div>
+
+      <div className="px-3 pb-3 space-y-2.5">
+
+        {/* Producto / Descripción */}
+        {item.tipo === 'catalogo' ? (
+          <div className="relative">
+            {confirmed ? (
+              /* Producto confirmado */
+              <div className="flex items-center justify-between rounded-xl px-3 py-2 border-2"
+                style={{ borderColor: SAGE, background: `${SAGE}0D` }}>
+                <div className="flex items-center gap-2 min-w-0">
+                  <Package size={13} style={{ color: SAGE }} className="flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold leading-tight truncate" style={{ color: SAGE }}>
+                      {item.nombre}
+                    </p>
+                    <p className="text-[10px] text-brand-muted">{item.categoria}</p>
+                  </div>
+                </div>
+                <button type="button" onClick={clearConfirmed}
+                  className="text-brand-muted hover:text-brand-body ml-2 flex-shrink-0">
+                  <X size={13} />
+                </button>
+              </div>
+            ) : (
+              /* Búsqueda */
+              <>
+                <input
+                  type="text"
+                  value={busqueda}
+                  onChange={e => search(e.target.value)}
+                  onBlur={() => setTimeout(() => setShowDrop(false), 150)}
+                  onFocus={() => suggestions.length > 0 && setShowDrop(true)}
+                  placeholder="Buscar producto por nombre o código…"
+                  className="input w-full text-sm"
+                  autoFocus={item.nombre === ''}
+                />
+                {showDrop && (
+                  <div className="absolute z-30 top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-brand-border overflow-hidden max-h-48 overflow-y-auto">
+                    {suggestions.map(p => (
+                      <button key={p.id} type="button"
+                        onMouseDown={() => pick(p)}
+                        className="w-full text-left px-4 py-2.5 hover:bg-cream transition-colors flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-brand-body truncate">{p.nombre}</p>
+                          <p className="text-[10px] text-brand-muted">{p.categoria}</p>
+                        </div>
+                        <span className="text-xs font-bold flex-shrink-0" style={{ color: SAGE }}>
+                          {fmt$(p.precio)}
+                        </span>
+                      </button>
+                    ))}
+                    {busqueda.length >= 2 && suggestions.length === 0 && (
+                      <div className="px-4 py-3 text-xs text-brand-muted">Sin resultados</div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        ) : (
+          /* Ítem personalizado: texto libre + categoría */
+          <div className="space-y-2">
+            <input
+              type="text"
+              value={item.nombre}
+              onChange={e => onUpdate({ ...item, nombre: e.target.value })}
+              placeholder="Descripción del ítem…"
+              className="input w-full text-sm"
+            />
+            <select
+              value={item.categoria}
+              onChange={e => onUpdate({ ...item, categoria: e.target.value })}
+              className="input w-full text-sm">
+              {CATEGORIAS.map(c => <option key={c}>{c}</option>)}
+            </select>
+          </div>
+        )}
+
+        {/* Cantidad · Precio · Subtotal */}
+        <div className="grid grid-cols-3 gap-2 items-end">
+          <div>
+            <label className="block text-[10px] font-bold tracking-[1.2px] uppercase text-brand-muted mb-1">
+              Cant.
+            </label>
+            <input
+              type="number" min="0.01" step="0.01"
+              value={item.cantidad}
+              onChange={e => onUpdate({ ...item, cantidad: e.target.value })}
+              className="input w-full text-sm text-center"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold tracking-[1.2px] uppercase text-brand-muted mb-1">
+              Precio unit.
+            </label>
+            <input
+              type="number" min="0" step="1"
+              value={item.precio_unitario}
+              onChange={e => onUpdate({ ...item, precio_unitario: e.target.value })}
+              placeholder="$ 0"
+              className="input w-full text-sm text-right"
+            />
+          </div>
+          <div className="rounded-xl px-3 py-2.5 text-right" style={{ background: `${SAGE}10` }}>
+            <p className="text-[9px] font-bold text-brand-muted uppercase tracking-wide mb-0.5">Subtotal</p>
+            <p className="text-sm font-bold tabular-nums" style={{ color: SAGE }}>
+              {subtotal > 0 ? fmt$(subtotal) : '—'}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // ── Modal de carga / edición ──────────────────────────────────────────────────
 function VentaModal({
-  initial, onSave, onClose,
+  editVenta,
+  onSave,
+  onClose,
 }: {
-  initial?: Partial<typeof EMPTY_FORM & { id: number }>
-  onSave: (data: typeof EMPTY_FORM) => Promise<void>
+  editVenta?: Venta
+  onSave: (items: LineItem[], global: GlobalForm) => Promise<void>
   onClose: () => void
 }) {
-  const [form, setForm]       = useState({ ...EMPTY_FORM, ...initial })
-  const [saving, setSaving]   = useState(false)
-  const [error, setError]     = useState('')
-  const [clientes, setClientes] = useState<ClienteOption[]>([])
-  const [busqueda, setBusqueda] = useState('')
-  // Producto autocomplete
-  const [prodSuggestions, setProdSuggestions] = useState<ProductoOption[]>([])
-  const [showProdDrop, setShowProdDrop]       = useState(false)
-  const prodTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isEdit = !!editVenta
 
-  // Cargar lista de clientes cuando se selecciona cliente_registrado
+  // ── Estado global (compartido para todos los ítems) ──
+  const [global, setGlobal] = useState<GlobalForm>({
+    fecha:        editVenta?.fecha       ?? new Date().toISOString().slice(0, 10),
+    canal:        editVenta?.canal       ?? CANALES[0],
+    metodo_pago:  editVenta?.metodo_pago ?? METODOS_PAGO[0],
+    cliente_tipo: (editVenta?.cliente_tipo as GlobalForm['cliente_tipo']) ?? 'cliente_final',
+    cliente_id:   editVenta?.cliente_id  ?? null,
+    notas:        editVenta?.notas       ?? '',
+  })
+
+  // ── Ítems (solo para nueva venta; en edición = 1 ítem fijo) ──
+  const [items, setItems] = useState<LineItem[]>(() => {
+    if (isEdit) {
+      return [{
+        localId:         newLocalId(),
+        tipo:            'catalogo',
+        nombre:          editVenta!.producto,
+        categoria:       editVenta!.categoria,
+        cantidad:        String(editVenta!.cantidad),
+        precio_unitario: String(editVenta!.precio_unitario),
+      }]
+    }
+    return [newCatalogItem()]
+  })
+
+  const [saving, setSaving]     = useState(false)
+  const [error, setError]       = useState('')
+  const [clientes, setClientes] = useState<ClienteOption[]>([])
+  const [busqCli, setBusqCli]   = useState('')
+
+  const setG = (k: keyof GlobalForm, v: unknown) =>
+    setGlobal(g => ({ ...g, [k]: v }))
+
+  const isCCDisabled = global.cliente_tipo === 'cliente_final'
+
+  // Cargar clientes cuando se elige cliente registrado
   useEffect(() => {
-    if (form.cliente_tipo === 'cliente_registrado' && clientes.length === 0) {
+    if (global.cliente_tipo === 'cliente_registrado' && clientes.length === 0) {
       api.get<ClienteOption[]>('/clientes-jan/')
         .then(res => setClientes(Array.isArray(res) ? res : []))
         .catch(() => {})
     }
-  }, [form.cliente_tipo])
+  }, [global.cliente_tipo])
 
-  // Buscar productos mientras escribe
-  function handleProductoChange(val: string) {
-    set('producto', val)
-    if (prodTimer.current) clearTimeout(prodTimer.current)
-    if (val.trim().length < 2) { setProdSuggestions([]); setShowProdDrop(false); return }
-    prodTimer.current = setTimeout(() => {
-      api.get<ProductoOption[]>(`/productos-jan/?q=${encodeURIComponent(val)}`)
-        .then(res => {
-          const arr = Array.isArray(res) ? res : []
-          setProdSuggestions(arr)
-          setShowProdDrop(arr.length > 0)
-        })
-        .catch(() => { setProdSuggestions([]); setShowProdDrop(false) })
-    }, 280)
+  // ── Item handlers ──
+  function updateItem(localId: string, updated: LineItem) {
+    setItems(prev => prev.map(it => it.localId === localId ? updated : it))
   }
-
-  function selectProducto(p: ProductoOption) {
-    setForm(f => ({
-      ...f,
-      producto:        p.nombre,
-      categoria:       p.categoria,
-      precio_unitario: String(p.precio),
-    }))
-    setProdSuggestions([])
-    setShowProdDrop(false)
+  function removeItem(localId: string) {
+    setItems(prev => prev.filter(it => it.localId !== localId))
   }
+  function addCatalog() { setItems(prev => [...prev, newCatalogItem()]) }
+  function addCustom()  { setItems(prev => [...prev, newCustomItem()]) }
 
-  const set = (k: string, v: unknown) => setForm(f => ({ ...f, [k]: v }))
-  const total = (parseFloat(form.cantidad) || 0) * (parseFloat(form.precio_unitario) || 0)
+  // ── Totales ──
+  const grandTotal = items.reduce((s, it) => {
+    return s + (parseFloat(it.cantidad) || 0) * (parseFloat(it.precio_unitario) || 0)
+  }, 0)
 
-  const clientesFiltrados = clientes.filter(c =>
-    c.nombre_completo.toLowerCase().includes(busqueda.toLowerCase())
+  const clienteSeleccionado = clientes.find(c => c.id === global.cliente_id)
+  const clientesFiltrados   = clientes.filter(c =>
+    c.nombre_completo.toLowerCase().includes(busqCli.toLowerCase())
   )
-
-  const clienteSeleccionado = clientes.find(c => c.id === form.cliente_id)
-
-  const isCCDisabled = form.cliente_tipo === 'cliente_final'
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.producto.trim() || !form.precio_unitario) {
-      setError('Completá producto y precio unitario.')
-      return
+    // Validaciones
+    for (const it of items) {
+      if (!it.nombre.trim()) { setError('Completá el nombre de todos los ítems.'); return }
+      if (!it.precio_unitario || parseFloat(it.precio_unitario) <= 0) {
+        setError('Todos los ítems deben tener precio mayor a 0.'); return
+      }
     }
-    if (form.cliente_tipo === 'cliente_registrado' && !form.cliente_id) {
-      setError('Seleccioná un cliente registrado.')
-      return
+    if (global.cliente_tipo === 'cliente_registrado' && !global.cliente_id) {
+      setError('Seleccioná un cliente registrado.'); return
     }
-    if (form.metodo_pago === 'Cuenta Corriente' && form.cliente_tipo !== 'cliente_registrado') {
-      setError('Cuenta Corriente solo está disponible para clientes registrados.')
-      return
+    if (global.metodo_pago === 'Cuenta Corriente' && global.cliente_tipo !== 'cliente_registrado') {
+      setError('Cuenta Corriente solo está disponible para clientes registrados.'); return
     }
     setSaving(true)
     setError('')
     try {
-      await onSave(form)
+      await onSave(items, global)
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar. Intentá de nuevo.')
@@ -169,14 +381,14 @@ function VentaModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4"
       style={{ background: 'rgba(30,43,26,0.55)', backdropFilter: 'blur(4px)' }}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[92vh] flex flex-col">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border flex-shrink-0">
           <div className="flex items-center gap-2">
             <ShoppingBag size={18} style={{ color: SAGE }} />
             <h2 className="font-bold font-head text-base" style={{ color: SAGE }}>
-              {initial?.id ? 'Editar venta' : 'Nueva venta'}
+              {isEdit ? 'Editar venta' : 'Nueva venta'}
             </h2>
           </div>
           <button onClick={onClose} className="text-brand-muted hover:text-brand-body transition-colors">
@@ -184,220 +396,214 @@ function VentaModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="p-5 space-y-4 overflow-y-auto flex-1">
 
-          {/* Fecha + Categoría */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-bold tracking-[1.5px] uppercase text-brand-muted mb-1.5">Fecha</label>
-              <input type="date" value={form.fecha} onChange={e => set('fecha', e.target.value)}
-                className="input w-full text-sm" required />
+            {/* Fecha + Canal */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold tracking-[1.5px] uppercase text-brand-muted mb-1.5">Fecha</label>
+                <input type="date" value={global.fecha}
+                  onChange={e => setG('fecha', e.target.value)}
+                  className="input w-full text-sm" required />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold tracking-[1.5px] uppercase text-brand-muted mb-1.5">Canal de venta</label>
+                <select value={global.canal} onChange={e => setG('canal', e.target.value)}
+                  className="input w-full text-sm">
+                  {CANALES.map(c => <option key={c}>{c}</option>)}
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="block text-[11px] font-bold tracking-[1.5px] uppercase text-brand-muted mb-1.5">Categoría</label>
-              <select value={form.categoria} onChange={e => set('categoria', e.target.value)}
-                className="input w-full text-sm">
-                {CATEGORIAS.map(c => <option key={c}>{c}</option>)}
-              </select>
-            </div>
-          </div>
 
-          {/* Producto */}
-          <div>
-            <label className="block text-[11px] font-bold tracking-[1.5px] uppercase text-brand-muted mb-1.5">Producto</label>
-            <div className="relative">
-              <input
-                type="text"
-                value={form.producto}
-                onChange={e => handleProductoChange(e.target.value)}
-                onBlur={() => setTimeout(() => setShowProdDrop(false), 180)}
-                onFocus={() => prodSuggestions.length > 0 && setShowProdDrop(true)}
-                placeholder="Ej: Vela lavanda 200g"
-                className="input w-full text-sm"
-                required
-              />
-              {showProdDrop && (
-                <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-brand-border overflow-hidden max-h-44 overflow-y-auto">
-                  {prodSuggestions.map(p => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onMouseDown={() => selectProducto(p)}
-                      className="w-full text-left px-4 py-2.5 hover:bg-cream transition-colors flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium text-brand-body truncate">{p.nombre}</span>
-                      <span className="text-xs font-bold flex-shrink-0" style={{ color: '#3D6B64' }}>{fmt$(p.precio)}</span>
-                    </button>
-                  ))}
+            {/* ── Ítems ── */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[11px] font-bold tracking-[1.5px] uppercase text-brand-muted">
+                  Productos / Ítems
+                </label>
+                {!isEdit && (
+                  <span className="text-[10px] text-brand-muted">
+                    {items.length} {items.length === 1 ? 'ítem' : 'ítems'}
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-2.5">
+                {items.map(it => (
+                  <LineItemRow
+                    key={it.localId}
+                    item={it}
+                    onUpdate={updated => updateItem(it.localId, updated)}
+                    onRemove={() => removeItem(it.localId)}
+                    isOnly={items.length === 1}
+                  />
+                ))}
+              </div>
+
+              {/* Botones agregar (solo en modo nuevo) */}
+              {!isEdit && (
+                <div className="flex gap-2 mt-2.5">
+                  <button type="button" onClick={addCatalog}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed text-xs font-bold transition-all hover:bg-cream/50"
+                    style={{ borderColor: `${SAGE}60`, color: SAGE }}>
+                    <Package size={12} /> Del catálogo
+                  </button>
+                  <button type="button" onClick={addCustom}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed text-xs font-bold transition-all hover:bg-cream/50"
+                    style={{ borderColor: `${AMBER}60`, color: AMBER }}>
+                    <Type size={12} /> Ítem libre
+                  </button>
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Cantidad + Precio unitario */}
-          <div className="grid grid-cols-2 gap-3">
+            {/* Grand total */}
+            {grandTotal > 0 && (
+              <div className="rounded-xl px-4 py-3 flex items-center justify-between"
+                style={{ background: `${SAGE}12` }}>
+                <span className="text-sm font-semibold text-brand-muted">
+                  Total{items.length > 1 ? ` (${items.length} ítems)` : ''}
+                </span>
+                <span className="text-xl font-bold tabular-nums" style={{ color: SAGE }}>
+                  {fmt$(grandTotal)}
+                </span>
+              </div>
+            )}
+
+            {/* Separador */}
+            <div className="border-t border-brand-border/50" />
+
+            {/* Tipo de cliente */}
             <div>
-              <label className="block text-[11px] font-bold tracking-[1.5px] uppercase text-brand-muted mb-1.5">Cantidad</label>
-              <input type="number" min="0.01" step="0.01" value={form.cantidad}
-                onChange={e => set('cantidad', e.target.value)}
-                className="input w-full text-sm" required />
+              <label className="block text-[11px] font-bold tracking-[1.5px] uppercase text-brand-muted mb-2">
+                Tipo de cliente
+              </label>
+              <div className="flex gap-3">
+                {[
+                  { val: 'cliente_final',      label: 'Cliente Final',      Icon: User },
+                  { val: 'cliente_registrado', label: 'Cliente Registrado', Icon: UserCheck },
+                ].map(({ val, label, Icon }) => (
+                  <button key={val} type="button"
+                    onClick={() => {
+                      setG('cliente_tipo', val)
+                      if (val === 'cliente_final') {
+                        setG('cliente_id', null)
+                        if (global.metodo_pago === 'Cuenta Corriente') setG('metodo_pago', 'Efectivo')
+                      }
+                    }}
+                    className={[
+                      'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-xs font-bold transition-all',
+                      global.cliente_tipo === val
+                        ? 'border-current text-white'
+                        : 'border-brand-border text-brand-muted hover:border-sage/40',
+                    ].join(' ')}
+                    style={global.cliente_tipo === val ? { background: SAGE, borderColor: SAGE } : {}}>
+                    <Icon size={14} />
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* Selector de cliente registrado */}
+            {global.cliente_tipo === 'cliente_registrado' && (
+              <div>
+                <label className="block text-[11px] font-bold tracking-[1.5px] uppercase text-brand-muted mb-1.5">
+                  Buscar cliente
+                </label>
+                {clienteSeleccionado ? (
+                  <div className="flex items-center justify-between rounded-xl px-3 py-2.5 border-2"
+                    style={{ borderColor: SAGE, background: `${SAGE}0D` }}>
+                    <div className="flex items-center gap-2">
+                      <UserCheck size={14} style={{ color: SAGE }} />
+                      <span className="text-sm font-semibold" style={{ color: SAGE }}>
+                        {clienteSeleccionado.nombre_completo}
+                      </span>
+                    </div>
+                    <button type="button"
+                      onClick={() => { setG('cliente_id', null); setBusqCli('') }}
+                      className="text-brand-muted hover:text-brand-body">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={busqCli}
+                      onChange={e => setBusqCli(e.target.value)}
+                      placeholder="Escribí el nombre del cliente…"
+                      className="input w-full text-sm"
+                    />
+                    {busqCli && clientesFiltrados.length > 0 && (
+                      <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-brand-border overflow-hidden max-h-40 overflow-y-auto">
+                        {clientesFiltrados.map(c => (
+                          <button key={c.id} type="button"
+                            onClick={() => { setG('cliente_id', c.id); setBusqCli('') }}
+                            className="w-full text-left px-4 py-2.5 text-sm hover:bg-cream transition-colors font-medium text-brand-body">
+                            {c.nombre_completo}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {busqCli && clientesFiltrados.length === 0 && (
+                      <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-brand-border px-4 py-3">
+                        <p className="text-xs text-brand-muted">No se encontraron clientes</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Método de pago */}
             <div>
-              <label className="block text-[11px] font-bold tracking-[1.5px] uppercase text-brand-muted mb-1.5">Precio unitario</label>
-              <input type="number" min="0" step="1" value={form.precio_unitario}
-                onChange={e => set('precio_unitario', e.target.value)}
-                placeholder="$ 0"
-                className="input w-full text-sm" required />
+              <label className="block text-[11px] font-bold tracking-[1.5px] uppercase text-brand-muted mb-2">
+                Método de pago
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {METODOS_PAGO.map(m => {
+                  const disabled = m === 'Cuenta Corriente' && isCCDisabled
+                  const selected = global.metodo_pago === m
+                  return (
+                    <button key={m} type="button"
+                      disabled={disabled}
+                      onClick={() => !disabled && setG('metodo_pago', m)}
+                      title={disabled ? 'Solo para clientes registrados' : ''}
+                      className={[
+                        'flex items-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-semibold transition-all',
+                        selected && !disabled
+                          ? 'border-current text-white'
+                          : disabled
+                          ? 'border-brand-border/30 text-brand-muted/30 cursor-not-allowed'
+                          : 'border-brand-border text-brand-muted hover:border-sage/40 hover:text-brand-body',
+                      ].join(' ')}
+                      style={selected && !disabled ? { background: AMBER, borderColor: AMBER } : {}}>
+                      <span className="text-sm">{METODO_ICONS[m] ?? '💰'}</span>
+                      <span className="truncate">{m}</span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
-          </div>
 
-          {/* Total calculado */}
-          {total > 0 && (
-            <div className="rounded-xl px-4 py-3 flex items-center justify-between"
-              style={{ background: `${SAGE}12` }}>
-              <span className="text-sm font-semibold text-brand-muted">Total</span>
-              <span className="text-lg font-bold" style={{ color: SAGE }}>{fmt$(total)}</span>
-            </div>
-          )}
-
-          {/* Canal */}
-          <div>
-            <label className="block text-[11px] font-bold tracking-[1.5px] uppercase text-brand-muted mb-1.5">Canal de venta</label>
-            <select value={form.canal} onChange={e => set('canal', e.target.value)}
-              className="input w-full text-sm">
-              {CANALES.map(c => <option key={c}>{c}</option>)}
-            </select>
-          </div>
-
-          {/* Tipo de cliente */}
-          <div>
-            <label className="block text-[11px] font-bold tracking-[1.5px] uppercase text-brand-muted mb-2">Tipo de cliente</label>
-            <div className="flex gap-3">
-              {[
-                { val: 'cliente_final',      label: 'Cliente Final',      Icon: User },
-                { val: 'cliente_registrado', label: 'Cliente Registrado', Icon: UserCheck },
-              ].map(({ val, label, Icon }) => (
-                <button
-                  key={val}
-                  type="button"
-                  onClick={() => {
-                    set('cliente_tipo', val)
-                    if (val === 'cliente_final') {
-                      set('cliente_id', null)
-                      // Si CC seleccionado, resetear a Efectivo
-                      if (form.metodo_pago === 'Cuenta Corriente') set('metodo_pago', 'Efectivo')
-                    }
-                  }}
-                  className={[
-                    'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-xs font-bold transition-all',
-                    form.cliente_tipo === val
-                      ? 'border-current text-white'
-                      : 'border-brand-border text-brand-muted hover:border-sage/40',
-                  ].join(' ')}
-                  style={form.cliente_tipo === val ? { background: SAGE, borderColor: SAGE } : {}}>
-                  <Icon size={14} />
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Selector de cliente registrado */}
-          {form.cliente_tipo === 'cliente_registrado' && (
+            {/* Notas */}
             <div>
               <label className="block text-[11px] font-bold tracking-[1.5px] uppercase text-brand-muted mb-1.5">
-                Buscar cliente
+                Notas <span className="font-normal normal-case">(opcional)</span>
               </label>
-              {clienteSeleccionado ? (
-                <div className="flex items-center justify-between rounded-xl px-3 py-2.5 border-2"
-                  style={{ borderColor: SAGE, background: `${SAGE}0D` }}>
-                  <div className="flex items-center gap-2">
-                    <UserCheck size={14} style={{ color: SAGE }} />
-                    <span className="text-sm font-semibold" style={{ color: SAGE }}>
-                      {clienteSeleccionado.nombre_completo}
-                    </span>
-                  </div>
-                  <button type="button" onClick={() => { set('cliente_id', null); setBusqueda('') }}
-                    className="text-brand-muted hover:text-brand-body">
-                    <X size={14} />
-                  </button>
-                </div>
-              ) : (
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={busqueda}
-                    onChange={e => setBusqueda(e.target.value)}
-                    placeholder="Escribí el nombre del cliente…"
-                    className="input w-full text-sm"
-                  />
-                  {busqueda && clientesFiltrados.length > 0 && (
-                    <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-brand-border overflow-hidden max-h-40 overflow-y-auto">
-                      {clientesFiltrados.map(c => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => { set('cliente_id', c.id); setBusqueda('') }}
-                          className="w-full text-left px-4 py-2.5 text-sm hover:bg-cream transition-colors font-medium text-brand-body">
-                          {c.nombre_completo}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {busqueda && clientesFiltrados.length === 0 && (
-                    <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-brand-border px-4 py-3">
-                      <p className="text-xs text-brand-muted">No se encontraron clientes</p>
-                    </div>
-                  )}
-                </div>
-              )}
+              <input type="text" value={global.notas}
+                onChange={e => setG('notas', e.target.value)}
+                placeholder="Color, tamaño, cliente frecuente..."
+                className="input w-full text-sm" />
             </div>
-          )}
 
-          {/* Método de pago */}
-          <div>
-            <label className="block text-[11px] font-bold tracking-[1.5px] uppercase text-brand-muted mb-2">Método de pago</label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {METODOS_PAGO.map(m => {
-                const isCC = m === 'Cuenta Corriente'
-                const disabled = isCC && isCCDisabled
-                const selected = form.metodo_pago === m
-                return (
-                  <button
-                    key={m}
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => !disabled && set('metodo_pago', m)}
-                    title={disabled ? 'Solo para clientes registrados' : ''}
-                    className={[
-                      'flex items-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-semibold transition-all',
-                      selected && !disabled
-                        ? 'border-current text-white'
-                        : disabled
-                        ? 'border-brand-border/30 text-brand-muted/30 cursor-not-allowed'
-                        : 'border-brand-border text-brand-muted hover:border-sage/40 hover:text-brand-body',
-                    ].join(' ')}
-                    style={selected && !disabled ? { background: AMBER, borderColor: AMBER } : {}}>
-                    <span className="text-sm">{METODO_ICONS[m] ?? '💰'}</span>
-                    <span className="truncate">{m}</span>
-                  </button>
-                )
-              })}
-            </div>
+            {error && <p className="text-red-500 text-xs font-medium">{error}</p>}
           </div>
 
-          {/* Notas */}
-          <div>
-            <label className="block text-[11px] font-bold tracking-[1.5px] uppercase text-brand-muted mb-1.5">
-              Notas <span className="font-normal normal-case">(opcional)</span>
-            </label>
-            <input type="text" value={form.notas} onChange={e => set('notas', e.target.value)}
-              placeholder="Color, tamaño, cliente frecuente..."
-              className="input w-full text-sm" />
-          </div>
-
-          {error && <p className="text-red-500 text-xs font-medium">{error}</p>}
-
-          <div className="flex gap-2 pt-1">
+          {/* Footer pegado */}
+          <div className="flex gap-2 px-5 py-4 border-t border-brand-border/50 flex-shrink-0">
             <button type="button" onClick={onClose}
               className="flex-1 border border-brand-border rounded-xl py-2.5 text-sm font-semibold text-brand-muted hover:text-brand-body transition-colors">
               Cancelar
@@ -406,7 +612,13 @@ function VentaModal({
               className="flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold text-white transition-all disabled:opacity-50"
               style={{ background: SAGE }}>
               <Check size={15} />
-              {saving ? 'Guardando…' : 'Guardar venta'}
+              {saving
+                ? 'Guardando…'
+                : isEdit
+                ? 'Guardar cambios'
+                : items.length > 1
+                ? `Guardar ${items.length} ítems`
+                : 'Guardar venta'}
             </button>
           </div>
         </form>
@@ -439,11 +651,11 @@ function EstadoPago({ estado }: { estado: string }) {
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function Ventas() {
-  const [month, setMonth]     = useState(MONTHS[CURRENT_MONTH_IDX] ?? 'MAYO')
-  const [year,  setYear]      = useState(CURRENT_YEAR)
-  const [data,  setData]      = useState<Summary | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [modal, setModal]     = useState<{ open: boolean; venta?: Venta }>({ open: false })
+  const [month, setMonth]       = useState(MONTHS[CURRENT_MONTH_IDX] ?? 'MAYO')
+  const [year,  setYear]        = useState(CURRENT_YEAR)
+  const [data,  setData]        = useState<Summary | null>(null)
+  const [loading, setLoading]   = useState(true)
+  const [modal, setModal]       = useState<{ open: boolean; venta?: Venta }>({ open: false })
   const [deleting, setDeleting] = useState<number | null>(null)
 
   const load = useCallback(() => {
@@ -456,23 +668,38 @@ export default function Ventas() {
 
   useEffect(() => { load() }, [load])
 
-  async function handleSave(form: typeof EMPTY_FORM) {
-    const body = {
-      fecha:           form.fecha,
-      producto:        form.producto,
-      categoria:       form.categoria,
-      cantidad:        parseFloat(form.cantidad),
-      precio_unitario: parseFloat(form.precio_unitario),
-      canal:           form.canal,
-      metodo_pago:     form.metodo_pago,
-      cliente_tipo:    form.cliente_tipo,
-      cliente_id:      form.cliente_id,
-      notas:           form.notas,
-    }
+  async function handleSave(items: LineItem[], global: GlobalForm) {
     if (modal.venta) {
-      await api.put(`/ventas-jan/${modal.venta.id}`, body)
+      // Edición: actualizar ítem único
+      const it = items[0]
+      await api.put(`/ventas-jan/${modal.venta.id}`, {
+        fecha:           global.fecha,
+        producto:        it.nombre,
+        categoria:       it.categoria,
+        cantidad:        parseFloat(it.cantidad),
+        precio_unitario: parseFloat(it.precio_unitario),
+        canal:           global.canal,
+        metodo_pago:     global.metodo_pago,
+        cliente_tipo:    global.cliente_tipo,
+        cliente_id:      global.cliente_id,
+        notas:           global.notas,
+      })
     } else {
-      await api.post('/ventas-jan/', body)
+      // Creación: una venta por ítem, en secuencia
+      for (const it of items) {
+        await api.post('/ventas-jan/', {
+          fecha:           global.fecha,
+          producto:        it.nombre,
+          categoria:       it.categoria,
+          cantidad:        parseFloat(it.cantidad),
+          precio_unitario: parseFloat(it.precio_unitario),
+          canal:           global.canal,
+          metodo_pago:     global.metodo_pago,
+          cliente_tipo:    global.cliente_tipo,
+          cliente_id:      global.cliente_id,
+          notas:           global.notas,
+        })
+      }
     }
     load()
   }
@@ -488,9 +715,7 @@ export default function Ventas() {
     }
   }
 
-  const ventas = data?.ventas ?? []
-
-  // Calcular totales por método de pago nuevo
+  const ventas    = data?.ventas ?? []
   const porMetodo = data?.por_medio ?? {}
 
   return (
@@ -525,18 +750,14 @@ export default function Ventas() {
         <>
           {/* ── KPI row ── */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {/* Total del mes */}
             <div className="card p-5 col-span-2 md:col-span-1 border-l-4" style={{ borderLeftColor: SAGE }}>
               <p className="text-[11px] font-bold tracking-[1.5px] uppercase text-brand-muted mb-1">Total {month}</p>
               <p className="text-2xl font-bold font-head" style={{ color: SAGE }}>{fmt$(data?.total_mes ?? 0)}</p>
               <p className="text-xs text-brand-muted mt-1">{data?.cantidad_ops ?? 0} ventas cargadas</p>
             </div>
-
-            {/* CC Pendiente */}
             <div className="card p-4 border-l-4" style={{ borderLeftColor: '#ca8a04' }}>
               <p className="text-[11px] font-bold tracking-[1.2px] uppercase text-brand-muted mb-1.5 flex items-center gap-1">
-                <span>📒</span>
-                <span>Cta. Corriente</span>
+                <span>📒</span><span>Cta. Corriente</span>
               </p>
               <p className="text-lg font-bold font-head tabular-nums" style={{ color: '#ca8a04' }}>
                 {fmt$(ventas.filter(v => v.estado_pago === 'pendiente').reduce((s, v) => s + v.total, 0))}
@@ -545,12 +766,9 @@ export default function Ventas() {
                 {ventas.filter(v => v.estado_pago === 'pendiente').length} pendientes
               </p>
             </div>
-
-            {/* Cobrado */}
             <div className="card p-4 border-l-4" style={{ borderLeftColor: AMBER }}>
               <p className="text-[11px] font-bold tracking-[1.2px] uppercase text-brand-muted mb-1.5 flex items-center gap-1">
-                <span>✓</span>
-                <span>Cobrado</span>
+                <span>✓</span><span>Cobrado</span>
               </p>
               <p className="text-lg font-bold font-head tabular-nums" style={{ color: AMBER }}>
                 {fmt$(ventas.filter(v => v.estado_pago === 'pagado').reduce((s, v) => s + v.total, 0))}
@@ -559,7 +777,7 @@ export default function Ventas() {
             </div>
           </div>
 
-          {/* ── Desglose por método de pago ── */}
+          {/* ── Por método de pago ── */}
           {Object.keys(porMetodo).length > 0 && (
             <div className="card p-4">
               <p className="text-[11px] font-bold tracking-[1.5px] uppercase text-brand-muted mb-3">
@@ -579,7 +797,7 @@ export default function Ventas() {
             </div>
           )}
 
-          {/* ── Desglose por línea ── */}
+          {/* ── Por línea de producto ── */}
           {Object.keys(data?.por_categoria ?? {}).length > 0 && (
             <div className="card p-4">
               <p className="text-[11px] font-bold tracking-[1.5px] uppercase text-brand-muted mb-3 flex items-center gap-1.5">
@@ -690,19 +908,6 @@ export default function Ventas() {
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot>
-                    <tr style={{ background: `${SAGE}14` }}>
-                      <td colSpan={5} className="px-4 py-3 text-xs font-bold uppercase tracking-wide" style={{ color: SAGE }}>
-                        Total {month} {year}
-                      </td>
-                      <td className="px-4 py-3 text-right text-sm font-bold tabular-nums" style={{ color: SAGE }}>
-                        {fmt$(data?.total_mes ?? 0)}
-                      </td>
-                      <td colSpan={4} className="px-4 py-3 text-right text-xs text-brand-muted">
-                        {data?.cantidad_ops} operaciones
-                      </td>
-                    </tr>
-                  </tfoot>
                 </table>
               </div>
             )}
@@ -713,19 +918,7 @@ export default function Ventas() {
       {/* ── Modal ── */}
       {modal.open && (
         <VentaModal
-          initial={modal.venta ? {
-            id:              modal.venta.id,
-            fecha:           modal.venta.fecha,
-            producto:        modal.venta.producto,
-            categoria:       modal.venta.categoria,
-            cantidad:        String(modal.venta.cantidad),
-            precio_unitario: String(modal.venta.precio_unitario),
-            canal:           modal.venta.canal,
-            metodo_pago:     modal.venta.metodo_pago || modal.venta.medio_pago || METODOS_PAGO[0],
-            cliente_tipo:    (modal.venta.cliente_tipo as 'cliente_final' | 'cliente_registrado') || 'cliente_final',
-            cliente_id:      modal.venta.cliente_id,
-            notas:           modal.venta.notas,
-          } : undefined}
+          editVenta={modal.venta}
           onSave={handleSave}
           onClose={() => setModal({ open: false })}
         />
