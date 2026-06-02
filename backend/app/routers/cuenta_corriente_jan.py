@@ -65,32 +65,41 @@ def list_cc(
     }
 
 
-# ── Resumen por cliente (saldo agrupado) ──────────────────────────────────────
+# ── Resumen por cliente (saldo agrupado + detalle de deudas) ──────────────────
 
 @router.get("/resumen")
 def resumen_por_cliente(db: Session = Depends(get_db)):
-    rows = (
-        db.query(
-            CuentaCorrienteJAN.cliente_id,
-            func.sum(CuentaCorrienteJAN.monto_pendiente).label("total_pendiente"),
-            func.count(CuentaCorrienteJAN.id).label("cantidad_ops"),
-        )
+    # Traemos todos los registros abiertos de una vez
+    registros = (
+        db.query(CuentaCorrienteJAN)
         .filter(CuentaCorrienteJAN.estado.in_(["pendiente", "parcial"]))
-        .group_by(CuentaCorrienteJAN.cliente_id)
+        .order_by(CuentaCorrienteJAN.fecha_venta.desc())
         .all()
     )
-    result = []
-    for r in rows:
-        cliente = db.query(ClienteJAN).filter(ClienteJAN.id == r.cliente_id).first()
-        result.append({
-            "cliente_id":      r.cliente_id,
-            "nombre_cliente":  cliente.nombre_completo if cliente else "—",
-            "tipo_cliente":    cliente.tipo_cliente if cliente else "—",
-            "total_pendiente": float(r.total_pendiente),
-            "cantidad_ops":    r.cantidad_ops,
-        })
-    result.sort(key=lambda x: x["total_pendiente"], reverse=True)
-    return result
+
+    # Agrupamos por cliente
+    por_cliente: dict = {}
+    for r in registros:
+        if r.cliente_id not in por_cliente:
+            cliente = db.query(ClienteJAN).filter(ClienteJAN.id == r.cliente_id).first()
+            por_cliente[r.cliente_id] = {
+                "cliente_id":      r.cliente_id,
+                "nombre":          cliente.nombre_completo if cliente else "—",
+                "total_pendiente": 0.0,
+                "cantidad_deudas": 0,
+                "deudas":          [],
+            }
+        por_cliente[r.cliente_id]["total_pendiente"] += float(r.monto_pendiente)
+        por_cliente[r.cliente_id]["cantidad_deudas"] += 1
+        por_cliente[r.cliente_id]["deudas"].append(_serialize(r))
+
+    clientes = sorted(por_cliente.values(), key=lambda x: x["total_pendiente"], reverse=True)
+    total_global = sum(c["total_pendiente"] for c in clientes)
+
+    return {
+        "clientes":               clientes,
+        "total_pendiente_global": total_global,
+    }
 
 
 # ── Registrar pago (parcial o total) ─────────────────────────────────────────
