@@ -893,8 +893,9 @@ export default function Presupuestos() {
     setLoading(true)
     try {
       const res  = await fetch(`${API}/presupuestos-jan/`, { credentials: 'omit' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
-      setPresupuestos(data)
+      setPresupuestos(Array.isArray(data) ? data : [])
     } catch { setPresupuestos([]) } finally { setLoading(false) }
   }
 
