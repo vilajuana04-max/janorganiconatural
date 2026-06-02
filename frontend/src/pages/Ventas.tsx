@@ -245,7 +245,7 @@ function LineItemRow({
               Cant.
             </label>
             <input
-              type="number" min="0.01" step="0.01"
+              type="number" min="1" step="1"
               value={item.cantidad}
               onChange={e => onUpdate({ ...item, cantidad: e.target.value })}
               className="input w-full text-sm text-center"
