@@ -59,14 +59,12 @@ interface ProductoBusq {
 const fmtN = (n: number) => n % 1 === 0 ? String(n) : n.toFixed(2)
 
 const TIPO_COLOR: Record<string, string> = {
-  listo:     SAGE,
-  armado:    CORAL,
-  produccion:PURPLE,
+  listo:  SAGE,
+  armado: CORAL,
 }
 const TIPO_LABEL: Record<string, string> = {
-  listo:     'Listo para venta',
-  armado:    'Para armado',
-  produccion:'Para producción',
+  listo:  'Listo para venta',
+  armado: 'Para armado',
 }
 const MOV_LABEL: Record<string, { label: string; color: string }> = {
   entrada:            { label: '↑ Entrada',          color: SAGE  },
@@ -164,7 +162,7 @@ function MovimientoProductoModal({ preEntry, onClose, onDone }: { preEntry?: Sto
         <div className="flex items-center justify-between px-5 py-4" style={{ background: NAVY }}>
           <div>
             <p className="text-white font-bold">Movimiento de producto</p>
-            <p className="text-white/40 text-[11px] tracking-wide">Stock listo / armado / producción</p>
+            <p className="text-white/40 text-[11px] tracking-wide">Stock listo / armado</p>
           </div>
           <button onClick={onClose} className="text-white/40 hover:text-white"><X size={18} /></button>
         </div>
@@ -225,7 +223,6 @@ function MovimientoProductoModal({ preEntry, onClose, onDone }: { preEntry?: Sto
               <select value={tipoStock} onChange={e => setTipoStock(e.target.value)} className="w-full border rounded-xl px-3 py-2 text-sm" style={{ borderColor: '#E5E7EB' }}>
                 <option value="listo">Listo para venta</option>
                 <option value="armado">Para armado</option>
-                <option value="produccion">Para producción (producto semi)</option>
               </select>
             </div>
           ) : (
@@ -233,7 +230,6 @@ function MovimientoProductoModal({ preEntry, onClose, onDone }: { preEntry?: Sto
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: CORAL }}>Desde</label>
                 <select value={desdeT} onChange={e => setDesdeT(e.target.value)} className="w-full border rounded-xl px-3 py-2 text-sm" style={{ borderColor: '#E5E7EB' }}>
-                  <option value="produccion">Para producción</option>
                   <option value="armado">Para armado</option>
                   <option value="listo">Listo para venta</option>
                 </select>
@@ -243,7 +239,6 @@ function MovimientoProductoModal({ preEntry, onClose, onDone }: { preEntry?: Sto
                 <select value={haciaT} onChange={e => setHaciaT(e.target.value)} className="w-full border rounded-xl px-3 py-2 text-sm" style={{ borderColor: '#E5E7EB' }}>
                   <option value="listo">Listo para venta</option>
                   <option value="armado">Para armado</option>
-                  <option value="produccion">Para producción</option>
                 </select>
               </div>
             </div>
@@ -796,7 +791,7 @@ function InsumoRow({ insumo, onMovimiento, onMinimo }: {
 /* ════════════════════════════════════════════════════════════════
    PÁGINA PRINCIPAL
    ════════════════════════════════════════════════════════════════ */
-type Tab = 'listo' | 'armado' | 'produccion' | 'insumos'
+type Tab = 'listo' | 'armado' | 'insumos'
 
 export default function Stock() {
   const [entries,   setEntries]   = useState<StockEntry[]>([])
@@ -827,7 +822,7 @@ export default function Stock() {
 
   useEffect(() => { loadAll() }, [])
 
-  const grupos = agrupar(entries.filter(e => e.tipo === tab && (tab !== 'produccion')))
+  const grupos = agrupar(entries.filter(e => e.tipo === tab))
   const alertasProductos = entries.filter(e => e.alerta)
   const alertasInsumos   = insumos.filter(i => i.alerta)
   const totalAlertas     = alertasProductos.length + alertasInsumos.length
@@ -836,13 +831,12 @@ export default function Stock() {
   const insumosFiltrados = insumos.filter(i => !busqueda || i.nombre.toLowerCase().includes(busqueda.toLowerCase()))
 
   const TABS: { key: Tab; label: string; icon: React.ReactNode; count: string }[] = [
-    { key: 'listo',     label: 'Listo para venta', icon: <Check size={12}/>,        count: fmtN(entries.filter(e=>e.tipo==='listo').reduce((s,e)=>s+e.cantidad,0)) },
-    { key: 'armado',    label: 'Para armado',       icon: <Layers size={12}/>,       count: fmtN(entries.filter(e=>e.tipo==='armado').reduce((s,e)=>s+e.cantidad,0)) },
-    { key: 'produccion',label: 'Semi terminados',   icon: <Package size={12}/>,      count: fmtN(entries.filter(e=>e.tipo==='produccion').reduce((s,e)=>s+e.cantidad,0)) },
-    { key: 'insumos',   label: 'Materias primas',   icon: <FlaskConical size={12}/>, count: String(insumos.length) },
+    { key: 'listo',   label: 'Listo para venta', icon: <Check size={12}/>,        count: fmtN(entries.filter(e=>e.tipo==='listo').reduce((s,e)=>s+e.cantidad,0)) },
+    { key: 'armado',  label: 'Para armado',       icon: <Layers size={12}/>,       count: fmtN(entries.filter(e=>e.tipo==='armado').reduce((s,e)=>s+e.cantidad,0)) },
+    { key: 'insumos', label: 'Materias primas',   icon: <FlaskConical size={12}/>, count: String(insumos.length) },
   ]
 
-  const tabColor: Record<Tab, string> = { listo: SAGE, armado: CORAL, produccion: NAVY, insumos: PURPLE }
+  const tabColor: Record<Tab, string> = { listo: SAGE, armado: CORAL, insumos: PURPLE }
 
   return (
     <div className="space-y-5">
@@ -958,7 +952,6 @@ export default function Stock() {
         <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 mb-2">Categorías de stock</p>
         {([['listo', 'Productos terminados y empacados, listos para vender.'],
            ['armado', 'Semi-terminados: falta etiquetar, tapar o empacar.'],
-           ['produccion', 'Productos en proceso o componentes semi-armados.'],
            ['insumos', 'Materias primas, aceites, ceras, packaging — se descuentan al registrar producción.']] as const).map(([k, desc]) => (
           <div key={k} className="flex items-start gap-2">
             <span className="w-2 h-2 rounded-full mt-0.5 shrink-0" style={{ background: tabColor[k as Tab] }}/>
