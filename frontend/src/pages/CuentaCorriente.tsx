@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { BookOpen, X, Check, ChevronDown, ChevronRight, AlertCircle } from 'lucide-react'
+import { BookOpen, X, Check, ChevronDown, ChevronRight, AlertCircle, Download, Calendar, CreditCard } from 'lucide-react'
 import { api, fmt$ } from '../api'
 
 const SAGE  = '#3D6B64'
@@ -15,9 +15,6 @@ type CCEntry = {
   fecha_venta: string
   fecha_cancelacion: string | null
   notas: string
-  // populated by resumen endpoint
-  producto?: string
-  categoria?: string
 }
 
 type ClienteResumen = {
@@ -31,6 +28,82 @@ type ClienteResumen = {
 type ResumenResponse = {
   clientes: ClienteResumen[]
   total_pendiente_global: number
+}
+
+// ── Helpers de fechas ─────────────────────────────────────────────────────────
+function fmtFecha(iso: string) {
+  return new Date(iso + 'T12:00:00').toLocaleDateString('es-AR', {
+    day: '2-digit', month: '2-digit', year: '2-digit',
+  })
+}
+
+// Parsear historial de pagos desde el campo notas
+function parsearPagos(notas: string): { tipo: string; monto?: number; nota: string }[] {
+  if (!notas) return []
+  return notas
+    .split('|')
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(s => {
+      const parcialMatch = s.match(/^Pago parcial \$([\d.]+):\s*(.*)$/)
+      const canceladoMatch = s.match(/^Cancelado:\s*(.*)$/)
+      if (parcialMatch) return { tipo: 'parcial', monto: parseFloat(parcialMatch[1]), nota: parcialMatch[2] }
+      if (canceladoMatch) return { tipo: 'cancelado', nota: canceladoMatch[1] }
+      return { tipo: 'nota', nota: s }
+    })
+}
+
+// ── Exportar CSV ──────────────────────────────────────────────────────────────
+function exportarCSV(resumen: ResumenResponse) {
+  const encabezado = [
+    'Cliente',
+    'Venta #',
+    'Fecha Venta',
+    'Monto Original',
+    'Monto Pendiente',
+    'Estado',
+    'Fecha Cancelación / Pago',
+    'Historial Pagos',
+  ]
+
+  const filas: string[][] = []
+  for (const cliente of resumen.clientes) {
+    for (const deuda of cliente.deudas) {
+      const pagos = parsearPagos(deuda.notas)
+      const historial = pagos
+        .map(p => p.tipo === 'parcial' ? `Parcial $${p.monto}` : p.tipo === 'cancelado' ? 'Cancelado' : p.nota)
+        .join(' → ')
+      filas.push([
+        cliente.nombre,
+        String(deuda.venta_id),
+        fmtFecha(deuda.fecha_venta),
+        String(deuda.monto_original),
+        String(deuda.monto_pendiente),
+        deuda.estado,
+        deuda.fecha_cancelacion ? fmtFecha(deuda.fecha_cancelacion) : '',
+        historial,
+      ])
+    }
+  }
+
+  // Resumen final
+  filas.push([])
+  filas.push(['TOTAL PENDIENTE GLOBAL', '', '', '', String(resumen.total_pendiente_global), '', '', ''])
+
+  const csvContent =
+    [encabezado, ...filas]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+
+  const blob = new Blob(['﻿' + csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `cuenta-corriente-${new Date().toISOString().slice(0, 10)}.csv`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 // ── Modal de pago ─────────────────────────────────────────────────────────────
@@ -50,8 +123,8 @@ function PagoModal({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const montoNum  = parseFloat(monto) || 0
-  const restante  = Math.max(0, entry.monto_pendiente - montoNum)
+  const montoNum      = parseFloat(monto) || 0
+  const restante      = Math.max(0, entry.monto_pendiente - montoNum)
   const esCancelacion = montoNum >= entry.monto_pendiente
 
   async function handleSubmit(e: React.FormEvent) {
@@ -77,7 +150,7 @@ function PagoModal({
 
         <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border">
           <div className="flex items-center gap-2">
-            <BookOpen size={18} style={{ color: SAGE }} />
+            <CreditCard size={18} style={{ color: SAGE }} />
             <h2 className="font-bold font-head text-base" style={{ color: SAGE }}>Registrar pago</h2>
           </div>
           <button onClick={onClose} className="text-brand-muted hover:text-brand-body">
@@ -96,15 +169,16 @@ function PagoModal({
               <span className="font-bold tabular-nums" style={{ color: AMBER }}>{fmt$(entry.monto_pendiente)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-brand-muted">Deuda original</span>
+              <span className="text-xs text-brand-muted">Monto original</span>
               <span className="text-sm tabular-nums text-brand-muted">{fmt$(entry.monto_original)}</span>
             </div>
-            {entry.producto && (
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-brand-muted">Venta</span>
-                <span className="text-xs text-brand-body">{entry.producto}</span>
-              </div>
-            )}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-brand-muted">Fecha de venta</span>
+              <span className="text-xs font-medium text-brand-body flex items-center gap-1">
+                <Calendar size={10} />
+                {fmtFecha(entry.fecha_venta)}
+              </span>
+            </div>
           </div>
 
           {/* Monto a pagar */}
@@ -118,7 +192,6 @@ function PagoModal({
               placeholder={`Máx. ${fmt$(entry.monto_pendiente)}`}
               className="input w-full text-sm" autoFocus
             />
-            {/* Botón cancelar total */}
             <button type="button"
               onClick={() => setMonto(String(entry.monto_pendiente))}
               className="mt-1.5 text-[11px] font-semibold underline underline-offset-2 transition-opacity hover:opacity-70"
@@ -185,13 +258,122 @@ function EstadoBadge({ estado }: { estado: string }) {
   )
 }
 
+// ── Timeline de pagos ─────────────────────────────────────────────────────────
+function HistorialPagos({ notas, fechaCancelacion }: { notas: string; fechaCancelacion: string | null }) {
+  const pagos = parsearPagos(notas)
+  if (pagos.length === 0) return null
+
+  return (
+    <div className="mt-2.5 pl-3 border-l-2 space-y-1.5" style={{ borderColor: `${SAGE}30` }}>
+      {pagos.map((p, i) => (
+        <div key={i} className="text-[11px] flex items-start gap-1.5">
+          <span className="mt-0.5 flex-shrink-0" style={{ color: p.tipo === 'cancelado' ? '#16a34a' : AMBER }}>
+            {p.tipo === 'cancelado' ? '✓' : '→'}
+          </span>
+          <span className="text-brand-muted">
+            {p.tipo === 'parcial' && <><span className="font-bold text-brand-body">{fmt$(p.monto!)}</span> pagado</>}
+            {p.tipo === 'cancelado' && <span className="font-bold text-green-700">Deuda cancelada</span>}
+            {p.nota && <span className="ml-1 opacity-70">— {p.nota}</span>}
+            {p.tipo === 'cancelado' && fechaCancelacion && (
+              <span className="ml-1 opacity-70">({fmtFecha(fechaCancelacion)})</span>
+            )}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── Fila de deuda ─────────────────────────────────────────────────────────────
+function DeudaRow({
+  deuda,
+  clienteNombre,
+  onPago,
+}: {
+  deuda: CCEntry
+  clienteNombre: string
+  onPago: () => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const tienePagos = parsearPagos(deuda.notas).length > 0
+
+  return (
+    <div className="border-b border-brand-border/20 last:border-b-0">
+      <div className="flex flex-wrap items-center gap-3 px-5 py-3 hover:bg-cream/20 transition-colors">
+
+        {/* Info principal */}
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-brand-body">
+            Venta #{deuda.venta_id}
+          </p>
+          {/* Fechas */}
+          <div className="flex flex-wrap items-center gap-2 mt-1">
+            <span className="text-[11px] text-brand-muted flex items-center gap-1">
+              <Calendar size={10} />
+              Venta: {fmtFecha(deuda.fecha_venta)}
+            </span>
+            {deuda.fecha_cancelacion && (
+              <span className="text-[11px] text-green-600 flex items-center gap-1">
+                <Check size={10} />
+                Pago: {fmtFecha(deuda.fecha_cancelacion)}
+              </span>
+            )}
+          </div>
+          {/* Montos */}
+          <div className="flex flex-wrap items-center gap-2 mt-1">
+            <span className="text-[11px] text-brand-muted">
+              Original: <span className="font-medium">{fmt$(deuda.monto_original)}</span>
+            </span>
+            {deuda.monto_pendiente !== deuda.monto_original && (
+              <span className="text-[11px]" style={{ color: AMBER }}>
+                Pagado: <span className="font-medium">{fmt$(deuda.monto_original - deuda.monto_pendiente)}</span>
+              </span>
+            )}
+          </div>
+
+          {/* Historial expandible */}
+          {tienePagos && (
+            <button
+              onClick={() => setExpanded(e => !e)}
+              className="mt-1.5 text-[11px] font-semibold flex items-center gap-1 transition-opacity hover:opacity-70"
+              style={{ color: SAGE }}>
+              {expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+              {expanded ? 'Ocultar historial' : 'Ver historial de pagos'}
+            </button>
+          )}
+          {expanded && (
+            <HistorialPagos notas={deuda.notas} fechaCancelacion={deuda.fecha_cancelacion} />
+          )}
+        </div>
+
+        <EstadoBadge estado={deuda.estado} />
+
+        <div className="text-right flex-shrink-0">
+          <p className="text-sm font-bold tabular-nums" style={{ color: AMBER }}>
+            {fmt$(deuda.monto_pendiente)}
+          </p>
+          <p className="text-[10px] text-brand-muted">pendiente</p>
+        </div>
+
+        <button
+          onClick={onPago}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all hover:opacity-90 flex-shrink-0"
+          style={{ background: SAGE }}>
+          <Check size={12} />
+          Pago
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function CuentaCorriente() {
-  const [resumen, setResumen]       = useState<ResumenResponse | null>(null)
-  const [loading, setLoading]       = useState(true)
-  const [expanded, setExpanded]     = useState<Set<number>>(new Set())
-  const [pagoModal, setPagoModal]   = useState<{ entry: CCEntry; clienteNombre: string } | null>(null)
-  const [filtro, setFiltro]         = useState<'todos' | 'pendiente' | 'parcial'>('todos')
+  const [resumen, setResumen]     = useState<ResumenResponse | null>(null)
+  const [loading, setLoading]     = useState(true)
+  const [expanded, setExpanded]   = useState<Set<number>>(new Set())
+  const [pagoModal, setPagoModal] = useState<{ entry: CCEntry; clienteNombre: string } | null>(null)
+  const [filtro, setFiltro]       = useState<'todos' | 'pendiente' | 'parcial'>('todos')
 
   const load = useCallback(() => {
     setLoading(true)
@@ -230,10 +412,12 @@ export default function CuentaCorriente() {
       {/* ── Header ── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold font-head" style={{ color: SAGE }}>Cuenta Corriente</h1>
+          <h1 className="text-2xl font-bold font-head" style={{ color: SAGE }}>Saldo Cuenta Corriente</h1>
           <p className="text-brand-muted text-sm mt-0.5">Deudas pendientes de clientes</p>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Filtros */}
           {(['todos', 'pendiente', 'parcial'] as const).map(f => (
             <button key={f}
               onClick={() => setFiltro(f)}
@@ -247,6 +431,16 @@ export default function CuentaCorriente() {
               {f === 'todos' ? 'Todos' : f === 'pendiente' ? 'Pendientes' : 'Parciales'}
             </button>
           ))}
+
+          {/* Botón exportar */}
+          {resumen && resumen.clientes.length > 0 && (
+            <button
+              onClick={() => exportarCSV(resumen)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border border-brand-border text-brand-muted hover:text-brand-body hover:border-sage/40 transition-all">
+              <Download size={13} />
+              Exportar CSV
+            </button>
+          )}
         </div>
       </div>
 
@@ -305,7 +499,7 @@ export default function CuentaCorriente() {
                 return (
                   <div key={cliente.cliente_id} className="card p-0 overflow-hidden">
 
-                    {/* ── Fila cliente ── */}
+                    {/* ── Fila cliente (header expandible) ── */}
                     <button
                       className="w-full flex items-center gap-4 px-5 py-4 hover:bg-cream/30 transition-colors text-left"
                       onClick={() => toggleExpand(cliente.cliente_id)}>
@@ -342,38 +536,12 @@ export default function CuentaCorriente() {
                     {isOpen && (
                       <div className="border-t border-brand-border/40">
                         {deudasFiltradas.map(deuda => (
-                          <div key={deuda.id}
-                            className="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-brand-border/20 last:border-b-0 hover:bg-cream/20 transition-colors">
-
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold text-brand-body">
-                                {deuda.producto ?? `Venta #${deuda.venta_id}`}
-                              </p>
-                              <p className="text-[11px] text-brand-muted mt-0.5">
-                                {new Date(deuda.fecha_venta + 'T12:00:00').toLocaleDateString('es-AR', {
-                                  day: '2-digit', month: '2-digit', year: '2-digit',
-                                })}
-                                {' · '}Original: {fmt$(deuda.monto_original)}
-                              </p>
-                            </div>
-
-                            <EstadoBadge estado={deuda.estado} />
-
-                            <div className="text-right">
-                              <p className="text-sm font-bold tabular-nums" style={{ color: AMBER }}>
-                                {fmt$(deuda.monto_pendiente)}
-                              </p>
-                              <p className="text-[10px] text-brand-muted">pendiente</p>
-                            </div>
-
-                            <button
-                              onClick={() => setPagoModal({ entry: deuda, clienteNombre: cliente.nombre })}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all hover:opacity-90"
-                              style={{ background: SAGE }}>
-                              <Check size={12} />
-                              Pago
-                            </button>
-                          </div>
+                          <DeudaRow
+                            key={deuda.id}
+                            deuda={deuda}
+                            clienteNombre={cliente.nombre}
+                            onPago={() => setPagoModal({ entry: deuda, clienteNombre: cliente.nombre })}
+                          />
                         ))}
                       </div>
                     )}

@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, ShoppingCart, FlaskConical,
-  Menu, X, ChevronDown, Wallet, LogOut, BookOpen,
+  Menu, X, ChevronDown, Wallet, LogOut, BookOpen, Users,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
@@ -17,11 +17,13 @@ const FINANZAS_ITEMS = [
   { to: '/flujocaja',         label: 'Flujo de Caja'    },
   { to: '/vencimientos',      label: 'Vencimientos'     },
   { to: '/punto-equilibrio',  label: 'Pto. Equilibrio'  },
-  { to: '/cuenta-corriente',  label: 'Cta. Corriente'   },
+]
+const CLIENTES_ITEMS = [
+  { to: '/clientes',          label: 'Base de datos'    },
+  { to: '/cuenta-corriente',  label: 'Saldo CC'         },
 ]
 const COMERCIAL_ITEMS = [
   { to: '/ventas',    label: 'Ventas'    },
-  { to: '/clientes',  label: 'Clientes'  },
   { to: '/compras',   label: 'Compras'   },
   { to: '/productos', label: 'Productos' },
 ]
@@ -31,6 +33,7 @@ const PRODUCCION_ITEMS = [
 ]
 
 const FINANZAS_PATHS   = FINANZAS_ITEMS.map(i => i.to)
+const CLIENTES_PATHS   = CLIENTES_ITEMS.map(i => i.to)
 const COMERCIAL_PATHS  = COMERCIAL_ITEMS.map(i => i.to)
 const PRODUCCION_PATHS = PRODUCCION_ITEMS.map(i => i.to)
 
@@ -199,9 +202,19 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
               onClose={onClose}
             />
 
-            {/* 04 Comercial */}
+            {/* 04 Clientes */}
             <SectionGroup
               num="04"
+              icon={Users}
+              label="Clientes"
+              items={CLIENTES_ITEMS}
+              paths={CLIENTES_PATHS}
+              onClose={onClose}
+            />
+
+            {/* 05 Comercial */}
+            <SectionGroup
+              num="05"
               icon={ShoppingCart}
               label="Comercial"
               items={COMERCIAL_ITEMS}
@@ -209,9 +222,9 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
               onClose={onClose}
             />
 
-            {/* 05 Producción */}
+            {/* 06 Producción */}
             <SectionGroup
-              num="05"
+              num="06"
               icon={FlaskConical}
               label="Producción"
               items={PRODUCCION_ITEMS}
